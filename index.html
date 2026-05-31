@@ -3,13 +3,127 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Budget Tracker</title>
+    <title>Ledger</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       * { box-sizing: border-box; }
-      html, body, #root { margin: 0; padding: 0; min-height: 100%; }
-      body { background: #060c18; }
+      html, body, #root { margin: 0; padding: 0; height: 100%; }
+      body {
+        background: #f6f7f9;
+        color: #111827;
+        font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      ::selection { background: rgba(79, 70, 229, 0.18); }
+      input::placeholder { color: #aeb4bf; }
+
+      /* Tabular figures for any number that should line up in columns. */
+      .tnum { font-variant-numeric: tabular-nums; }
+
+      /* Remove native number-input spinner arrows. */
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+      input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+      /* Inline editable text field. */
+      .field {
+        font: inherit;
+        font-size: 13px;
+        color: #111827;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        padding: 4px 7px;
+        outline: none;
+        transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+      }
+      .field:hover { background: rgba(17, 24, 39, 0.04); }
+      .field:focus {
+        background: #ffffff;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+      }
+
+      /* Wrapper field (currency "$" prefix, unit suffix) — highlights as one unit. */
+      .field-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        padding: 4px 8px;
+        cursor: text;
+        transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+      }
+      .field-wrap:hover { background: rgba(17, 24, 39, 0.04); }
+      .field-wrap:focus-within {
+        background: #ffffff;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+      }
+      .field-wrap .prefix { color: #9aa1ad; font-size: 13px; user-select: none; }
+      .field-wrap input {
+        font: inherit;
+        font-size: 13px;
+        color: #111827;
+        background: transparent;
+        border: none;
+        outline: none;
+        padding: 0;
+        min-width: 0;
+      }
+
+      /* Buttons. */
+      .btn {
+        font: inherit;
+        cursor: pointer;
+        transition: background 0.12s ease, border-color 0.12s ease, filter 0.12s ease, transform 0.04s ease;
+      }
+      .btn:active:not(:disabled) { transform: translateY(0.5px); }
+      .btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+      .btn-ghost:hover:not(:disabled) { background: #f3f4f6; border-color: #d1d5db; }
+      .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      .icon-btn { cursor: pointer; transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease; }
+      .icon-btn:hover {
+        background: rgba(220, 38, 38, 0.08);
+        color: #dc2626;
+        border-color: rgba(220, 38, 38, 0.35);
+      }
+
+      .link-btn { font: inherit; cursor: pointer; transition: color 0.12s ease; }
+      .link-btn:hover { color: #4338ca; }
+
+      /* Sidebar nav items. */
+      .nav-item { cursor: pointer; transition: background 0.12s ease, color 0.12s ease; }
+      .nav-item:hover:not(.active):not(:disabled) { background: #f3f4f6; color: #111827; }
+      .nav-item:disabled { cursor: default; }
+
+      /* Table rows. */
+      .row-hover { transition: background 0.1s ease; }
+      .row-hover:hover { background: #f9fafb; }
+
+      /* Elevated surfaces. */
+      .card { box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05); transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+      .card:hover { border-color: #d8dbe0; box-shadow: 0 2px 6px rgba(16, 24, 40, 0.07); }
+      .panel { box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05); }
+
+      /* Scrollbar. */
+      ::-webkit-scrollbar { width: 12px; height: 12px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb {
+        background: #d6d9df;
+        border-radius: 8px;
+        border: 3px solid transparent;
+        background-clip: content-box;
+      }
+      ::-webkit-scrollbar-thumb:hover { background: #c2c7d0; background-clip: content-box; }
     </style>
   </head>
   <body>

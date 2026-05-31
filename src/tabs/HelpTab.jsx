@@ -1,68 +1,75 @@
-// A plain-language walkthrough for first-time users.
-import { ACCENT, AMBER, GREEN, PURPLE } from "../theme.js";
-import { InfoBox, Section } from "../components.jsx";
+// Help — a concise, professional getting-started guide.
+import { BORDER_SOFT, POSITIVE, PRIMARY, PRIMARY_SOFT, PRIMARY_TEXT, TEXT, TEXT_2, WARNING } from "../theme.js";
+import { InfoBox, SectionLabel } from "../components.jsx";
 
 export default function HelpTab() {
   return (
     <div>
-      <Section title="What this is" color={ACCENT}>
-        <InfoBox color={ACCENT}>
-          A simple monthly budget tracker. You set your income, list what you spend
-          across categories, and it shows what's left over and how your savings grow.
-          It starts with an example budget — change anything you like, or clear it and
-          build your own.
-        </InfoBox>
-      </Section>
+      <div style={{ marginBottom: 26 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: -0.3, color: TEXT }}>Help &amp; guide</h1>
+        <p style={{ fontSize: 13, color: TEXT_2, margin: "4px 0 0" }}>Set up your budget in a couple of minutes.</p>
+      </div>
 
-      <Section title="The Budget tab" color={ACCENT}>
-        <InfoBox color={ACCENT} title="1. Set your income.">
-          Click the dollar amount next to “Monthly take-home” and type your real number.
-        </InfoBox>
-        <InfoBox color={ACCENT} title="2. Edit categories &amp; items.">
-          Each card is a category (Housing, Living, etc.). Click any name or amount to
-          edit it. Use “+ Add item” inside a card for a new line, or the ✕ to remove
-          one.
-        </InfoBox>
-        <InfoBox color={ACCENT} title="3. Add your own categories.">
-          Hit “+ Add category” at the bottom for anything that's missing — pets, gym,
-          daycare, whatever fits your life.
-        </InfoBox>
-        <InfoBox color={GREEN} title="Leftover.">
-          The green “Leftover” card is income minus all expenses — your monthly savings.
-          If it turns red, you're spending more than you make.
-        </InfoBox>
-      </Section>
+      <div style={{ marginBottom: 28 }}>
+        <SectionLabel>Getting started</SectionLabel>
+        <Step n="1" title="Set your income">
+          On the Budget tab, click the income amount and enter your monthly take-home.
+        </Step>
+        <Step n="2" title="Edit your spending">
+          Click any category name, line item, or amount to change it. Use “+ Add item” inside a card, or “+ Add category” at the bottom for anything that's missing.
+        </Step>
+        <Step n="3" title="Watch your net">
+          The Net card is income minus expenses. Your savings rate updates live as you edit.
+        </Step>
+        <Step n="4" title="Project forward">
+          The Savings tab compounds your surplus at your APY, with a chart and month-by-month schedule.
+        </Step>
+      </div>
 
-      <Section title="The Savings tab" color={GREEN}>
-        <InfoBox color={GREEN}>
-          This projects your leftover forward month by month, with interest. Set your
-          starting balance, your account's APY (e.g. a high-yield savings rate like
-          3.10%), and how many months to look ahead. The table updates instantly.
+      <div style={{ marginBottom: 28 }}>
+        <SectionLabel>Good to know</SectionLabel>
+        <InfoBox color={POSITIVE} title="Auto-saved.">
+          Everything lives in this browser — no login required. Reset and Clear are in the top bar.
         </InfoBox>
-      </Section>
+        <InfoBox color={WARNING} title="One device for now.">
+          Cross-device sync and connected accounts are on the way.
+        </InfoBox>
+      </div>
 
-      <Section title="Saving &amp; resetting" color={AMBER}>
-        <InfoBox color={AMBER} title="Auto-saved.">
-          Everything you type is saved automatically in this browser — no account, no
-          login. Close the tab and come back; it'll be here.
-        </InfoBox>
-        <InfoBox color={AMBER} title="Reset / Clear.">
-          “Reset to example” reloads the sample budget. “Clear all” wipes everything for
-          a blank start. Both are at the top of the page.
-        </InfoBox>
-        <InfoBox color={AMBER} title="One browser for now.">
-          Because data lives in this browser, it won't follow you to another device yet.
-          Syncing across devices is on the roadmap.
-        </InfoBox>
-      </Section>
+      <div>
+        <SectionLabel>On the roadmap</SectionLabel>
+        <InfoBox color={PRIMARY} title="Connect accounts.">Pull balances and transactions in automatically.</InfoBox>
+        <InfoBox color={PRIMARY} title="Investments &amp; markets.">Track holdings against the S&amp;P 500 and model contributions.</InfoBox>
+        <InfoBox color={PRIMARY} title="Hypotheticals.">Ask “what if rent went up $200?” and watch every projection adjust.</InfoBox>
+      </div>
+    </div>
+  );
+}
 
-      <Section title="Coming later" color={PURPLE}>
-        <InfoBox color={PURPLE}>
-          Tracking what you actually spent vs. planned, importing bank statements, and
-          AI helpers like “what if my rent went up $200?” or auto-sorting transactions
-          into categories. For now, this is the simple, solid core.
-        </InfoBox>
-      </Section>
+function Step({ n, title, children }) {
+  return (
+    <div style={{ display: "flex", gap: 13, padding: "11px 0", borderBottom: `1px solid ${BORDER_SOFT}` }}>
+      <div
+        style={{
+          width: 24,
+          height: 24,
+          flexShrink: 0,
+          borderRadius: 7,
+          background: PRIMARY_SOFT,
+          color: PRIMARY_TEXT,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 12,
+          fontWeight: 700,
+        }}
+      >
+        {n}
+      </div>
+      <div>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: TEXT, marginBottom: 3 }}>{title}</div>
+        <div style={{ fontSize: 13, color: TEXT_2, lineHeight: 1.6 }}>{children}</div>
+      </div>
     </div>
   );
 }

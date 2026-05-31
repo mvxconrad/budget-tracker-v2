@@ -41,10 +41,34 @@ export function useBudget() {
   const api = {
     setTitle: (title) => update((b) => ((b.title = title), b)),
     setSubtitle: (subtitle) => update((b) => ((b.subtitle = subtitle), b)),
+    setLocation: (location) => update((b) => ((b.location = location), b)),
     setIncome: (income) => update((b) => ((b.income = income), b)),
 
     setSavingsField: (field, value) =>
-      update((b) => ((b.savings[field] = value), b)),
+      update((b) => {
+        b.savings[field] = value;
+        // Drop pinned months that fall outside a reduced horizon, so they
+        // don't silently reappear if the user later raises the month count.
+        if (field === "months" && b.savings.overrides) {
+          for (const k of Object.keys(b.savings.overrides)) {
+            if (Number(k) >= value) delete b.savings.overrides[k];
+          }
+        }
+        return b;
+      }),
+
+    // Pin a single month's savings contribution (clamped to a non-negative number).
+    setSavingsOverride: (i, amount) =>
+      update((b) => {
+        (b.savings.overrides ||= {})[i] = Math.max(0, Number(amount) || 0);
+        return b;
+      }),
+    // Un-pin a month so it auto-fills from the budget leftover again.
+    clearSavingsOverride: (i) =>
+      update((b) => {
+        if (b.savings.overrides) delete b.savings.overrides[i];
+        return b;
+      }),
 
     addCategory: () =>
       update((b) => {

@@ -14,11 +14,13 @@ export function makeDefaultBudget() {
     version: SCHEMA_VERSION,
     title: "My Budget",
     subtitle: "Monthly overview",
+    location: "Los Angeles, CA",
     income: 7900,
     savings: {
       startingBalance: 0,
       apyPercent: 3.1,
       months: 6,
+      overrides: {}, // per-month contribution overrides, keyed by month index
     },
     categories: [
       {
@@ -66,8 +68,9 @@ export function makeEmptyBudget() {
     version: SCHEMA_VERSION,
     title: "My Budget",
     subtitle: "Monthly overview",
+    location: "",
     income: 0,
-    savings: { startingBalance: 0, apyPercent: 3.1, months: 6 },
+    savings: { startingBalance: 0, apyPercent: 3.1, months: 6, overrides: {} },
     categories: [],
   };
 }
