@@ -12,9 +12,11 @@ import {
   TEXT_3,
 } from "./theme.js";
 import { useBudget } from "./useBudget.js";
+import { useAuth } from "./auth.jsx";
 import { Btn, Pill } from "./components.jsx";
 import BudgetTab from "./tabs/BudgetTab.jsx";
 import SavingsTab from "./tabs/SavingsTab.jsx";
+import SettingsTab from "./tabs/SettingsTab.jsx";
 import HelpTab from "./tabs/HelpTab.jsx";
 
 const NAV = [
@@ -25,11 +27,12 @@ const SOON = [
   { key: "investments", label: "Investments", icon: "investments" },
   { key: "reports", label: "Reports", icon: "reports" },
 ];
-const TITLES = { budget: "Budget", savings: "Savings", help: "Help" };
+const TITLES = { budget: "Budget", savings: "Savings", settings: "Settings", help: "Help" };
 
 export default function App() {
   const [budget, api] = useBudget();
   const [active, setActive] = useState("budget");
+  const { user, guest, logout } = useAuth();
 
   const onReset = () => {
     if (confirm("Reload the example budget? Your current changes will be replaced.")) api.resetToExample();
@@ -37,6 +40,9 @@ export default function App() {
   const onClear = () => {
     if (confirm("Clear everything and start from a blank budget?")) api.clearAll();
   };
+
+  // Budget/Savings get the data toolbar; Settings/Help don't.
+  const showDataToolbar = active === "budget" || active === "savings";
 
   return (
     <div style={{ display: "flex", height: "100vh", background: BG, color: TEXT, fontFamily: FONT }}>
@@ -64,10 +70,9 @@ export default function App() {
           ))}
         </NavGroup>
         <div style={{ flex: 1 }} />
+        <NavItem label="Settings" icon="settings" active={active === "settings"} onClick={() => setActive("settings")} />
         <NavItem label="Help" icon="help" active={active === "help"} onClick={() => setActive("help")} />
-        <div style={{ marginTop: 10, paddingTop: 12, borderTop: `1px solid ${BORDER_SOFT}`, fontSize: 11, color: TEXT_3, paddingLeft: 10 }}>
-          Saved locally in your browser
-        </div>
+        <AccountFooter user={user} guest={guest} logout={logout} />
       </aside>
 
       {/* Main */}
@@ -84,23 +89,60 @@ export default function App() {
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 600 }}>{TITLES[active]}</div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <Btn onClick={onReset}>Reset</Btn>
-            <Btn onClick={onClear}>Clear</Btn>
-            <Btn variant="primary" disabled title="Coming soon">
-              <Icon name="plus" size={15} /> Connect account
-            </Btn>
-          </div>
+          {showDataToolbar && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <Btn onClick={onReset}>Reset</Btn>
+              <Btn onClick={onClear}>Clear</Btn>
+              <Btn variant="primary" disabled title="Coming soon">
+                <Icon name="plus" size={15} /> Connect account
+              </Btn>
+            </div>
+          )}
         </header>
 
         <div style={{ flex: 1, overflowY: "auto" }}>
           <div style={{ maxWidth: 880, margin: "0 auto", padding: "30px 28px 72px" }}>
             {active === "budget" && <BudgetTab budget={budget} api={api} />}
             {active === "savings" && <SavingsTab budget={budget} api={api} />}
+            {active === "settings" && <SettingsTab />}
             {active === "help" && <HelpTab />}
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+function AccountFooter({ user, guest, logout }) {
+  return (
+    <div style={{ marginTop: 10, paddingTop: 12, borderTop: `1px solid ${BORDER_SOFT}` }}>
+      {user ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 8px" }}>
+          <div
+            style={{
+              width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
+              background: PRIMARY_SOFT, color: PRIMARY_TEXT,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 12, fontWeight: 700,
+            }}
+          >
+            {user.email[0].toUpperCase()}
+          </div>
+          <span style={{ flex: 1, fontSize: 12, color: TEXT_2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {user.email}
+          </span>
+          <button className="link-btn" onClick={logout} title="Sign out" style={{ background: "none", border: "none", cursor: "pointer", color: TEXT_3, fontSize: 12 }}>
+            Sign out
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 8px" }}>
+          <span style={{ fontSize: 12, color: TEXT_3 }}>Guest{guest ? " · local only" : ""}</span>
+          <button className="link-btn" onClick={logout} style={{ background: "none", border: "none", cursor: "pointer", color: PRIMARY, fontSize: 12, fontWeight: 600 }}>
+            Sign in
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -207,6 +249,13 @@ function Icon({ name, size = 17 }) {
         <svg {...p}>
           <rect x="5" y="3" width="14" height="18" rx="2.5" />
           <path d="M9 8.5h6M9 12.5h6M9 16.5h4" />
+        </svg>
+      );
+    case "settings":
+      return (
+        <svg {...p}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 13.5a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.3-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
         </svg>
       );
     case "help":

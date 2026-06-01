@@ -5,8 +5,12 @@ Real Anthropic call, gated on ANTHROPIC_API_KEY: with no key it returns a clear
 you add billing. Runs a manual tool-use loop so Claude can both propose budget
 edits (returned to the UI) and run projections (executed here).
 
-Auth is intentionally optional in this skeleton (get_optional_user) so you can
-test without logging in. To require login, swap to get_current_user.
+Key resolution order: the logged-in user's own saved key (Settings) first, then
+the server's ANTHROPIC_API_KEY env fallback. With neither, returns a clear
+"not configured" response instead of erroring.
+
+Auth is optional (get_optional_user) so the seam works without login, but a
+logged-in user with a saved key runs the assistant on their own account.
 """
 import json
 
@@ -17,33 +21,43 @@ from ..deps import get_optional_user
 from ..limiter import limiter
 from ..schemas import ChatRequest, ChatResponse
 from ..services.budget_tools import SYSTEM, TOOLS, compute_projection
+from ..store import get_settings
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
-_client = None
+# Cache one Anthropic client per distinct key (users bring their own).
+_clients: dict[str, object] = {}
 
 
-def _get_client():
-    global _client
-    if _client is None:
+def _client_for(key: str):
+    if key not in _clients:
         from anthropic import AsyncAnthropic
 
-        _client = AsyncAnthropic(api_key=settings.anthropic_api_key)
-    return _client
+        _clients[key] = AsyncAnthropic(api_key=key)
+    return _clients[key]
+
+
+def _resolve_key(user: dict | None) -> str:
+    if user:
+        s = get_settings(user["email"])
+        if s.get("provider", "anthropic") == "anthropic" and s.get("api_key"):
+            return s["api_key"]
+    return settings.anthropic_api_key  # env fallback
 
 
 @router.post("/chat", response_model=ChatResponse)
 @limiter.limit("10/minute")  # the expensive route — real model spend per call
-async def chat(request: Request, req: ChatRequest, _user=Depends(get_optional_user)):
-    if not settings.anthropic_api_key:
+async def chat(request: Request, req: ChatRequest, user=Depends(get_optional_user)):
+    api_key = _resolve_key(user)
+    if not api_key:
         return ChatResponse(
-            reply="The assistant isn't configured yet. Add ANTHROPIC_API_KEY to the "
-            "server's .env to turn it on.",
+            reply="The assistant isn't connected yet. Add your Anthropic API key in "
+            "Settings to turn it on.",
             edits=None,
             configured=False,
         )
 
-    client = _get_client()
+    client = _client_for(api_key)
     budget_json = json.dumps(req.budget.model_dump(), indent=2)
     messages: list[dict] = [t.model_dump() for t in req.history]
     messages.append(

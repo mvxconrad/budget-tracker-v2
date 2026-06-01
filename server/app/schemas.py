@@ -62,3 +62,20 @@ class ChatResponse(BaseModel):
     reply: str
     edits: dict | None = None  # partial budget the frontend should apply
     configured: bool = True
+
+
+# --- settings (per-user AI key) ---
+class SettingsUpdate(BaseModel):
+    provider: str | None = None  # "anthropic" | "openai"
+    api_key: str | None = None
+
+
+class SettingsResponse(BaseModel):
+    provider: str | None = None
+    has_key: bool = False
+    key_hint: str | None = None  # last 4 chars only, never the full key
+
+
+class TestKeyResponse(BaseModel):
+    ok: bool
+    detail: str = ""

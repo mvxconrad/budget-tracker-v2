@@ -1,6 +1,10 @@
 // City typeahead: debounced, cached search with keyboard navigation.
 // Stays a free-text field (so any value still works), but offers real city
 // suggestions as you type and writes a clean "City, ST" label on select.
+//
+// Search is driven by the user TYPING (onChange of the input), not by the
+// `value` prop — so a pre-filled location on load, or selecting an item, never
+// triggers a spurious fetch or opens the dropdown on its own.
 import { useEffect, useRef, useState } from "react";
 import { BORDER, PRIMARY_SOFT, SURFACE, TEXT, TEXT_2, TEXT_3 } from "./theme.js";
 import { searchCities } from "./geo.js";
@@ -11,16 +15,34 @@ export default function LocationAutocomplete({ value, onChange, placeholder }) {
   const [loading, setLoading] = useState(false);
   const [noMatch, setNoMatch] = useState(false);
   const [hi, setHi] = useState(-1);
-  const skip = useRef(false); // suppress the fetch triggered by our own select()
-  const box = useRef(null);
 
-  // Debounced, abortable search whenever the text changes.
+  const box = useRef(null);
+  const timer = useRef(null);
+  const ctrl = useRef(null);
+
+  // Cancel any in-flight debounce/request on unmount.
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      ctrl.current?.abort();
+    },
+    []
+  );
+
+  // Close when clicking outside.
   useEffect(() => {
-    if (skip.current) {
-      skip.current = false;
-      return;
-    }
-    const q = (value || "").trim();
+    const onDoc = (e) => {
+      if (box.current && !box.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  // Run a debounced, abortable search. Called only from the typing handler.
+  const runSearch = (raw) => {
+    clearTimeout(timer.current);
+    ctrl.current?.abort();
+    const q = raw.trim();
     if (q.length < 2) {
       setResults([]);
       setNoMatch(false);
@@ -28,11 +50,14 @@ export default function LocationAutocomplete({ value, onChange, placeholder }) {
       setOpen(false);
       return;
     }
-    const ctrl = new AbortController();
     setLoading(true);
-    const t = setTimeout(async () => {
+    setOpen(true);
+    timer.current = setTimeout(async () => {
+      const ac = new AbortController();
+      ctrl.current = ac;
       try {
-        const r = await searchCities(q, ctrl.signal);
+        const r = await searchCities(q, ac.signal);
+        if (ac.signal.aborted) return;
         setResults(r);
         setNoMatch(r.length === 0);
         setHi(-1);
@@ -44,26 +69,20 @@ export default function LocationAutocomplete({ value, onChange, placeholder }) {
           setOpen(false);
         }
       } finally {
-        setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
       }
     }, 250);
-    return () => {
-      clearTimeout(t);
-      ctrl.abort();
-    };
-  }, [value]);
+  };
 
-  // Close when clicking outside.
-  useEffect(() => {
-    const onDoc = (e) => {
-      if (box.current && !box.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
+  const onType = (e) => {
+    const v = e.target.value;
+    onChange(v);
+    runSearch(v);
+  };
 
   const select = (r) => {
-    skip.current = true;
+    clearTimeout(timer.current);
+    ctrl.current?.abort();
     onChange(r.label);
     setResults([]);
     setNoMatch(false);
@@ -96,7 +115,7 @@ export default function LocationAutocomplete({ value, onChange, placeholder }) {
       <input
         value={value}
         placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onType}
         onKeyDown={onKey}
         onFocus={() => results.length > 0 && setOpen(true)}
         style={{

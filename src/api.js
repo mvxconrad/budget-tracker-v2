@@ -2,6 +2,12 @@
 // Auth token is kept in localStorage; the assistant call returns { reply, edits }
 // where `edits` is a partial budget you merge into the on-screen state.
 
+// Backend base URL comes from Vite env files:
+//   .env.development → http://localhost:8000   (npm run dev)
+//   .env.production  → http://54.186.135.167   (npm run build)
+// NOTE: production is plain http:// — if the frontend is served over https,
+// browsers block these calls as mixed content. The backend needs HTTPS before
+// the deployed site can reach it.
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const TOKEN_KEY = "ledger-auth-token";
 
@@ -56,6 +62,14 @@ export const logout = () => setToken(null);
 // returns { reply, edits, configured }
 export const chat = (message, budget, history = []) =>
   req("/api/ai/chat", { method: "POST", body: { message, budget, history } });
+
+// --- settings (per-user AI key) ---
+// returns { provider, has_key, key_hint }
+export const getSettings = () => req("/api/settings");
+export const saveSettings = ({ provider, apiKey }) =>
+  req("/api/settings", { method: "PUT", body: { provider, api_key: apiKey } });
+export const deleteKey = () => req("/api/settings", { method: "DELETE" });
+export const testKey = () => req("/api/settings/test-key", { method: "POST" }); // { ok, detail }
 
 // --- market / portfolio (stubs) ---
 export const quote = (symbol) => req(`/api/market/quote?symbol=${encodeURIComponent(symbol)}`, { auth: false });
