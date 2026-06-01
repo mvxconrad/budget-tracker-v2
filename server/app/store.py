@@ -1,55 +1,111 @@
-"""TEMPORARY in-memory data store.
+"""Data-access layer (PostgreSQL via async SQLAlchemy).
 
-This is a skeleton stand-in so the API runs without a database. Replace with a
-real datastore (Postgres via SQLAlchemy, or DynamoDB on AWS) before production —
-everything is namespaced here so the swap is contained to this file.
+ALL queries go through the ORM with bound parameters — user input is never
+interpolated into SQL text, so these functions are not vulnerable to SQL
+injection. Emails are normalized to lowercase. API keys are encrypted at rest.
 """
-from threading import Lock
+import uuid
+from datetime import datetime, timezone
 
-_lock = Lock()
-_users: dict[str, dict] = {}  # email -> {email, password_hash, created_at}
-_portfolios: dict[str, list] = {}  # email -> [holding, ...]
-_settings: dict[str, dict] = {}  # email -> {provider, api_key}
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from . import crypto
+from .models import Budget, RefreshToken, User
+
+
+def _norm(email: str) -> str:
+    return email.strip().lower()
 
 
 # --- users ---
-def get_user(email: str) -> dict | None:
-    return _users.get(email.lower())
+async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
+    res = await session.execute(select(User).where(User.email == _norm(email)))
+    return res.scalar_one_or_none()
 
 
-def create_user(email: str, password_hash: str) -> dict:
-    with _lock:
-        email = email.lower()
-        user = {"email": email, "password_hash": password_hash}
-        _users[email] = user
-        return user
+async def get_user_by_id(session: AsyncSession, user_id: str | uuid.UUID) -> User | None:
+    try:
+        uid = user_id if isinstance(user_id, uuid.UUID) else uuid.UUID(str(user_id))
+    except (ValueError, AttributeError):
+        return None
+    res = await session.execute(select(User).where(User.id == uid))
+    return res.scalar_one_or_none()
 
 
-# --- portfolios (stub) ---
-def list_holdings(email: str) -> list:
-    return _portfolios.get(email.lower(), [])
+async def create_user(session: AsyncSession, email: str, hashed_password: str) -> User:
+    user = User(email=_norm(email), hashed_password=hashed_password, role="user")
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
 
 
-def set_holdings(email: str, holdings: list) -> list:
-    with _lock:
-        _portfolios[email.lower()] = holdings
-        return holdings
+# --- per-user AI key (encrypted at rest) ---
+async def set_user_api_key(
+    session: AsyncSession, user: User, *, provider: str | None = ..., api_key: str | None = ...
+) -> User:
+    """Update provider and/or key. Pass `...` (default) to leave a field
+    unchanged; pass None to clear it; pass a string to set it."""
+    if provider is not ...:
+        user.api_provider = provider
+    if api_key is not ...:
+        user.api_key_encrypted = crypto.encrypt(api_key) if api_key else None
+    await session.commit()
+    await session.refresh(user)
+    return user
 
 
-# --- per-user settings (e.g. their own AI API key) ---
-# NOTE: stored in plaintext in memory for the skeleton. Before production, move
-# to a DB and encrypt at rest (e.g. KMS-backed envelope encryption on AWS).
-def get_settings(email: str) -> dict:
-    return _settings.get(email.lower(), {})
+def get_user_api_key(user: User) -> str | None:
+    """Decrypt and return the user's stored API key (or None)."""
+    return crypto.decrypt(user.api_key_encrypted)
 
 
-def set_settings(email: str, **fields) -> dict:
-    with _lock:
-        cur = dict(_settings.get(email.lower(), {}))
-        for k, v in fields.items():
-            if v is None:
-                cur.pop(k, None)
-            else:
-                cur[k] = v
-        _settings[email.lower()] = cur
-        return cur
+# --- refresh tokens ---
+async def store_refresh_token(
+    session: AsyncSession, user: User, token_hash: str, expires_at: datetime
+) -> RefreshToken:
+    rt = RefreshToken(user_id=user.id, token_hash=token_hash, expires_at=expires_at)
+    session.add(rt)
+    await session.commit()
+    return rt
+
+
+async def get_active_refresh_token(session: AsyncSession, token_hash: str) -> RefreshToken | None:
+    res = await session.execute(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
+    rt = res.scalar_one_or_none()
+    if not rt or rt.revoked:
+        return None
+    exp = rt.expires_at
+    if exp.tzinfo is None:  # SQLite returns naive datetimes
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp < datetime.now(timezone.utc):
+        return None
+    return rt
+
+
+async def revoke_refresh_token(session: AsyncSession, token_hash: str) -> None:
+    res = await session.execute(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
+    rt = res.scalar_one_or_none()
+    if rt:
+        rt.revoked = True
+        await session.commit()
+
+
+# --- budgets (server-synced copy) ---
+async def get_budget(session: AsyncSession, user: User) -> dict | None:
+    res = await session.execute(select(Budget).where(Budget.user_id == user.id))
+    b = res.scalar_one_or_none()
+    return b.data if b else None
+
+
+async def upsert_budget(session: AsyncSession, user: User, data: dict) -> dict:
+    res = await session.execute(select(Budget).where(Budget.user_id == user.id))
+    b = res.scalar_one_or_none()
+    if b:
+        b.data = data
+    else:
+        b = Budget(user_id=user.id, data=data)
+        session.add(b)
+    await session.commit()
+    return data

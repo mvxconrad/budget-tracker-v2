@@ -5,16 +5,22 @@ from pydantic import BaseModel, EmailStr, Field
 # --- auth ---
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=8, max_length=256)
 
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 
 class UserResponse(BaseModel):
     email: str
+    role: str = "user"
 
 
 # --- budget (mirrors src/defaultBudget.js) ---
@@ -53,7 +59,7 @@ class ChatTurn(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(max_length=8000)
     budget: Budget
     history: list[ChatTurn] = Field(default_factory=list)
 
@@ -67,7 +73,7 @@ class ChatResponse(BaseModel):
 # --- settings (per-user AI key) ---
 class SettingsUpdate(BaseModel):
     provider: str | None = None  # "anthropic" | "openai"
-    api_key: str | None = None
+    api_key: str | None = Field(default=None, max_length=512)
 
 
 class SettingsResponse(BaseModel):

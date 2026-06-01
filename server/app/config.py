@@ -9,13 +9,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    # Database. Prod (RDS): postgresql+asyncpg://user:pass@host:5432/dbname
+    # Local dev falls back to a SQLite file so the app runs with no Postgres.
+    database_url: str = "sqlite+aiosqlite:///./ledger_dev.db"
+
+    # Encryption-at-rest key for per-user API keys (Fernet, urlsafe-base64 32 bytes).
+    # If unset, a key is derived from JWT_SECRET (fine for dev; set explicitly in prod).
+    app_encryption_key: str = ""
+
     # AI
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-opus-4-8"
 
-    # Auth
+    # Auth — short-lived access token + long-lived refresh token.
     jwt_secret: str = "dev-secret-change-me"
-    jwt_expire_minutes: int = 43200  # 30 days
+    jwt_expire_minutes: int = 60  # access token
+    refresh_expire_days: int = 30  # refresh token
 
     # CORS
     allowed_origins: str = "http://localhost:5173"
@@ -29,6 +38,10 @@ class Settings(BaseSettings):
     @property
     def allowed_origins_list(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
+
+    @property
+    def is_sqlite(self) -> bool:
+        return self.database_url.startswith("sqlite")
 
     def features(self) -> dict[str, bool]:
         return {

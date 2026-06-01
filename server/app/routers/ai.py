@@ -1,13 +1,8 @@
 """AI assistant route.
 
-Real Anthropic call, gated on ANTHROPIC_API_KEY: with no key it returns a clear
-"not configured" response instead of erroring, so the frontend seam works before
-you add billing. Runs a manual tool-use loop so Claude can both propose budget
-edits (returned to the UI) and run projections (executed here).
-
-Key resolution order: the logged-in user's own saved key (Settings) first, then
-the server's ANTHROPIC_API_KEY env fallback. With neither, returns a clear
-"not configured" response instead of erroring.
+Key resolution order: the logged-in user's own saved key (Settings, decrypted)
+first, then the server's ANTHROPIC_API_KEY env fallback. With neither, returns a
+clear "not configured" response instead of erroring.
 
 Auth is optional (get_optional_user) so the seam works without login, but a
 logged-in user with a saved key runs the assistant on their own account.
@@ -16,12 +11,13 @@ import json
 
 from fastapi import APIRouter, Depends, Request
 
+from .. import store
 from ..config import settings
 from ..deps import get_optional_user
 from ..limiter import limiter
+from ..models import User
 from ..schemas import ChatRequest, ChatResponse
 from ..services.budget_tools import SYSTEM, TOOLS, compute_projection
-from ..store import get_settings
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -37,17 +33,17 @@ def _client_for(key: str):
     return _clients[key]
 
 
-def _resolve_key(user: dict | None) -> str:
-    if user:
-        s = get_settings(user["email"])
-        if s.get("provider", "anthropic") == "anthropic" and s.get("api_key"):
-            return s["api_key"]
+def _resolve_key(user: User | None) -> str:
+    if user and (user.api_provider or "anthropic") == "anthropic":
+        key = store.get_user_api_key(user)
+        if key:
+            return key
     return settings.anthropic_api_key  # env fallback
 
 
 @router.post("/chat", response_model=ChatResponse)
 @limiter.limit("10/minute")  # the expensive route — real model spend per call
-async def chat(request: Request, req: ChatRequest, user=Depends(get_optional_user)):
+async def chat(request: Request, req: ChatRequest, user: User | None = Depends(get_optional_user)):
     api_key = _resolve_key(user)
     if not api_key:
         return ChatResponse(

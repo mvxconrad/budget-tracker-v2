@@ -1,14 +1,15 @@
 """Investment portfolio (holdings + returns). STUB.
 
-In-memory CRUD per user so the shape is usable now. Returns are computed against
-the (currently mock) market quote. Requires auth.
+Not yet persisted — there is no portfolio table in the current schema (users,
+refresh_tokens, budgets). Returns an empty portfolio so the frontend can build
+against the shape; PUT reports not-implemented. Wire to a real table when the
+investments feature is built. Requires auth.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ..deps import get_current_user
-from ..routers.market import quote as market_quote
-from ..store import list_holdings, set_holdings
+from ..models import User
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -20,28 +21,10 @@ class Holding(BaseModel):
 
 
 @router.get("")
-async def get_portfolio(user: dict = Depends(get_current_user)):
-    holdings = list_holdings(user["email"])
-    enriched = []
-    total_value = 0.0
-    total_cost = 0.0
-    for h in holdings:
-        q = await market_quote(h["symbol"])
-        value = q["price"] * h["shares"]
-        cost = h["cost_basis"] * h["shares"]
-        total_value += value
-        total_cost += cost
-        enriched.append(
-            {**h, "price": q["price"], "value": round(value, 2), "gain": round(value - cost, 2)}
-        )
-    return {
-        "holdings": enriched,
-        "total_value": round(total_value, 2),
-        "total_gain": round(total_value - total_cost, 2),
-    }
+async def get_portfolio(user: User = Depends(get_current_user)):
+    return {"holdings": [], "total_value": 0.0, "total_gain": 0.0, "note": "not persisted yet"}
 
 
 @router.put("")
-def replace_portfolio(holdings: list[Holding], user: dict = Depends(get_current_user)):
-    set_holdings(user["email"], [h.model_dump() for h in holdings])
-    return {"count": len(holdings)}
+def replace_portfolio(holdings: list[Holding], user: User = Depends(get_current_user)):
+    raise HTTPException(501, "Portfolio persistence not implemented yet")

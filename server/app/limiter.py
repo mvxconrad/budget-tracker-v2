@@ -23,8 +23,12 @@ def _client_key(request):
     return get_remote_address(request)
 
 
+# Set RATE_LIMIT_ENABLED=false to disable (used in tests; useful prod escape hatch).
+_enabled = os.getenv("RATE_LIMIT_ENABLED", "true").lower() not in ("false", "0", "no")
+
 limiter = Limiter(
     key_func=_client_key,
     default_limits=["200/minute"],  # global backstop for any unannotated route
     storage_uri=os.getenv("RATE_LIMIT_STORAGE_URI", "memory://"),
+    enabled=_enabled,
 )

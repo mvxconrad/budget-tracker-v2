@@ -1,5 +1,6 @@
 """Ledger API — FastAPI entrypoint."""
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,13 +9,23 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from .config import settings
+from .db import create_all
 from .limiter import limiter
 from .middleware import RequestContextMiddleware
-from .routers import accounts, ai, auth, market, portfolio, settings as settings_router
+from .routers import accounts, ai, auth, budget, market, portfolio, settings as settings_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
-app = FastAPI(title="Ledger API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Local SQLite dev: auto-create tables. Production Postgres uses Alembic.
+    if settings.is_sqlite:
+        await create_all()
+    yield
+
+
+app = FastAPI(title="Ledger API", version="0.2.0", lifespan=lifespan)
 
 # Rate limiting: registers the limiter, the 429 handler, and the enforcing middleware.
 app.state.limiter = limiter
@@ -35,6 +46,7 @@ app.add_middleware(RequestContextMiddleware)
 
 app.include_router(auth.router)
 app.include_router(settings_router.router)
+app.include_router(budget.router)
 app.include_router(ai.router)
 app.include_router(market.router)
 app.include_router(portfolio.router)
