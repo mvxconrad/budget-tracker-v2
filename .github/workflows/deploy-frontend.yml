@@ -15,6 +15,7 @@ jobs:
           node-version: 20
 
       - run: npm ci
+
       - run: npm run build
 
       - uses: aws-actions/configure-aws-credentials@v4
@@ -23,4 +24,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
-      - run: aws s3 sync dist/ s3://budget-tracker-mvxconrad --delete
+      # Upload hashed assets first (long cache), then index.html (no cache) so
+      # the browser always fetches a fresh index pointing at the new bundle.
+      - run: aws s3 sync dist/ s3://budget-tracker-mvxconrad --delete --exclude index.html
+      - run: aws s3 cp dist/index.html s3://budget-tracker-mvxconrad/index.html --cache-control "no-cache"
+
+      # Bust CloudFront's cache so the new index.html is served immediately.
+      - run: aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
