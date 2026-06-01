@@ -28,6 +28,9 @@ async def get_current_user(
     user = await store.get_user_by_id(session, payload["sub"])
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
+    # The gate: even a valid token can't reach protected routes unless verified.
+    if not user.email_verified:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "email_not_verified")
     return user
 
 
@@ -41,3 +44,10 @@ async def get_optional_user(
     if not payload or payload.get("type") != "access" or "sub" not in payload:
         return None
     return await store.get_user_by_id(session, payload["sub"])
+
+
+async def get_admin_user(user: User = Depends(get_current_user)) -> User:
+    """Require an authenticated user with the 'admin' role. 403 otherwise."""
+    if user.role != "admin":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin access required")
+    return user

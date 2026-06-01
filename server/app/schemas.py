@@ -18,9 +18,23 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class VerifyRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=4, max_length=10)
+
+
+class ResendRequest(BaseModel):
+    email: EmailStr
+
+
+class MessageResponse(BaseModel):
+    detail: str
+
+
 class UserResponse(BaseModel):
     email: str
     role: str = "user"
+    email_verified: bool = True
 
 
 # --- budget (mirrors src/defaultBudget.js) ---

@@ -111,6 +111,33 @@ Add the serverless Claude proxy, then layer features (see below).
 function (never in the browser bundle). Usage is cheap at personal scale, but it's the
 one part that isn't free-static-hosting.
 
+## AI for projections (parked - possible directions, decide later)
+
+> Backend seam exists (`/api/ai/chat` with tool use: `apply_budget_edits`,
+> `project_savings`). These are candidate features, not committed work.
+
+- **Goal-solver** - "I want $30k by December" -> back-solve the monthly contribution
+  and offer to apply it across the editable months. Add a `solve_for_goal` tool.
+- **Scenario compare** - "what if I move to Austin?" -> pull the COL delta from the
+  benchmark data, re-run housing + projection, show before/after side by side.
+- **Narrative monthly report** - `/api/ai/report` turns the projection + benchmark
+  into a plain-English readout.
+- **Proactive nudges** - once transactions exist, flag drift from plan (depends on
+  the data layer / bank connection).
+- **Chatbot tab** - the visible UI for the above (tell it your numbers, it fills the
+  budget + answers what-ifs).
+
+## Connections hub (parked - "route everything" idea)
+
+Generalize Settings into a data-sources hub backed by one encrypted-credential
+pattern (already used for the per-user AI key):
+- **`connections` table**: `user_id, kind, credentials_encrypted, status` where
+  `kind` is anthropic | openai | plaid | brokerage.
+- **Banking** via Plaid Link (`/api/accounts/*` stubs exist) -> sync transactions ->
+  feeds plan-vs-actual and AI nudges.
+- **Portfolios** -> manual entry first, then a brokerage aggregator.
+- Each integration = add a `kind` + connect flow + sync job; no new security design.
+
 ## Open questions to decide later (not now)
 
 - TypeScript vs. plain JS? (Leaning TS for the data model; reversible.)

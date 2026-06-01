@@ -4,7 +4,7 @@
 
 const ENDPOINT = "https://geocoding-api.open-meteo.com/v1/search";
 const CACHE_KEY = "geo-cache:v1";
-const TTL = 1000 * 60 * 60 * 24 * 30; // 30 days — cities don't move
+const TTL = 1000 * 60 * 60 * 24 * 30; // 30 days - cities don't move
 const MAX_ENTRIES = 250; // cap localStorage growth
 
 const STATE_ABBR = {
@@ -37,7 +37,7 @@ function saveDisk() {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(disk));
   } catch {
-    // storage full / blocked — caching is best-effort
+    // storage full / blocked - caching is best-effort
   }
 }
 

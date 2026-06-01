@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 60  # access token
     refresh_expire_days: int = 30  # refresh token
 
+    # Email (verification codes). console = log the code (dev); ses = AWS SES.
+    email_provider: str = "console"
+    email_from: str = "no-reply@ledger.local"  # must be an SES-verified identity in prod
+    ses_region: str = "us-west-2"
+    ses_configuration_set: str = ""  # optional: enables bounce/complaint tracking
+
     # CORS
     allowed_origins: str = "http://localhost:5173"
 

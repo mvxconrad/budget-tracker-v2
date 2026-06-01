@@ -32,7 +32,7 @@ export function useBudget() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(budget));
     } catch {
-      // Storage might be full or blocked (private mode) — ignore.
+      // Storage might be full or blocked (private mode) - ignore.
     }
   }, [budget]);
 
@@ -114,7 +114,7 @@ export function useBudget() {
   return [budget, api];
 }
 
-// Derived numbers — computed, never stored.
+// Derived numbers - computed, never stored.
 export function summarize(budget) {
   const categories = budget.categories.map((c) => ({
     ...c,

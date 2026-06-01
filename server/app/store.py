@@ -7,11 +7,11 @@ injection. Emails are normalized to lowercase. API keys are encrypted at rest.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import crypto
-from .models import Budget, RefreshToken, User
+from .models import Budget, EmailVerification, RefreshToken, User
 
 
 def _norm(email: str) -> str:
@@ -41,6 +41,33 @@ async def create_user(session: AsyncSession, email: str, hashed_password: str) -
     return user
 
 
+# --- admin ---
+async def count_users(session: AsyncSession) -> int:
+    res = await session.execute(select(func.count()).select_from(User))
+    return int(res.scalar_one())
+
+
+async def count_users_with_key(session: AsyncSession) -> int:
+    res = await session.execute(
+        select(func.count()).select_from(User).where(User.api_key_encrypted.is_not(None))
+    )
+    return int(res.scalar_one())
+
+
+async def count_budgets(session: AsyncSession) -> int:
+    res = await session.execute(select(func.count()).select_from(Budget))
+    return int(res.scalar_one())
+
+
+async def list_users(session: AsyncSession, limit: int = 100, offset: int = 0) -> list[User]:
+    limit = max(1, min(limit, 500))
+    offset = max(0, offset)
+    res = await session.execute(
+        select(User).order_by(User.created_at.desc()).limit(limit).offset(offset)
+    )
+    return list(res.scalars().all())
+
+
 # --- per-user AI key (encrypted at rest) ---
 async def set_user_api_key(
     session: AsyncSession, user: User, *, provider: str | None = ..., api_key: str | None = ...
@@ -59,6 +86,57 @@ async def set_user_api_key(
 def get_user_api_key(user: User) -> str | None:
     """Decrypt and return the user's stored API key (or None)."""
     return crypto.decrypt(user.api_key_encrypted)
+
+
+# --- email verification (OTP) ---
+async def mark_email_verified(session: AsyncSession, user: User) -> None:
+    user.email_verified = True
+    await session.commit()
+
+
+async def create_email_code(
+    session: AsyncSession, user: User, code_hash: str, expires_at
+) -> EmailVerification:
+    # Invalidate any prior unconsumed codes for this user, then add the new one.
+    res = await session.execute(
+        select(EmailVerification).where(
+            EmailVerification.user_id == user.id, EmailVerification.consumed.is_(False)
+        )
+    )
+    for old in res.scalars().all():
+        old.consumed = True
+    ev = EmailVerification(user_id=user.id, code_hash=code_hash, expires_at=expires_at)
+    session.add(ev)
+    await session.commit()
+    await session.refresh(ev)
+    return ev
+
+
+async def get_active_email_code(session: AsyncSession, user: User) -> EmailVerification | None:
+    res = await session.execute(
+        select(EmailVerification)
+        .where(EmailVerification.user_id == user.id, EmailVerification.consumed.is_(False))
+        .order_by(EmailVerification.created_at.desc())
+    )
+    ev = res.scalars().first()
+    if not ev:
+        return None
+    exp = ev.expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp < datetime.now(timezone.utc):
+        return None
+    return ev
+
+
+async def bump_code_attempt(session: AsyncSession, ev: EmailVerification) -> None:
+    ev.attempts += 1
+    await session.commit()
+
+
+async def consume_code(session: AsyncSession, ev: EmailVerification) -> None:
+    ev.consumed = True
+    await session.commit()
 
 
 # --- refresh tokens ---

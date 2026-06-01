@@ -17,6 +17,7 @@ import { Btn, Pill } from "./components.jsx";
 import BudgetTab from "./tabs/BudgetTab.jsx";
 import SavingsTab from "./tabs/SavingsTab.jsx";
 import SettingsTab from "./tabs/SettingsTab.jsx";
+import AdminTab from "./tabs/AdminTab.jsx";
 import HelpTab from "./tabs/HelpTab.jsx";
 
 const NAV = [
@@ -27,12 +28,13 @@ const SOON = [
   { key: "investments", label: "Investments", icon: "investments" },
   { key: "reports", label: "Reports", icon: "reports" },
 ];
-const TITLES = { budget: "Budget", savings: "Savings", settings: "Settings", help: "Help" };
+const TITLES = { budget: "Budget", savings: "Savings", settings: "Settings", admin: "Admin", help: "Help" };
 
 export default function App() {
   const [budget, api] = useBudget();
   const [active, setActive] = useState("budget");
   const { user, guest, logout } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const onReset = () => {
     if (confirm("Reload the example budget? Your current changes will be replaced.")) api.resetToExample();
@@ -70,6 +72,9 @@ export default function App() {
           ))}
         </NavGroup>
         <div style={{ flex: 1 }} />
+        {isAdmin && (
+          <NavItem label="Admin" icon="admin" active={active === "admin"} onClick={() => setActive("admin")} />
+        )}
         <NavItem label="Settings" icon="settings" active={active === "settings"} onClick={() => setActive("settings")} />
         <NavItem label="Help" icon="help" active={active === "help"} onClick={() => setActive("help")} />
         <AccountFooter user={user} guest={guest} logout={logout} />
@@ -105,6 +110,7 @@ export default function App() {
             {active === "budget" && <BudgetTab budget={budget} api={api} />}
             {active === "savings" && <SavingsTab budget={budget} api={api} />}
             {active === "settings" && <SettingsTab />}
+            {active === "admin" && isAdmin && <AdminTab />}
             {active === "help" && <HelpTab />}
           </div>
         </div>
@@ -249,6 +255,13 @@ function Icon({ name, size = 17 }) {
         <svg {...p}>
           <rect x="5" y="3" width="14" height="18" rx="2.5" />
           <path d="M9 8.5h6M9 12.5h6M9 16.5h4" />
+        </svg>
+      );
+    case "admin":
+      return (
+        <svg {...p}>
+          <path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3Z" />
+          <path d="M9.5 12l1.8 1.8L15 10" />
         </svg>
       );
     case "settings":

@@ -1,98 +1,182 @@
-# Ledger — Budget Tracker
+<div align="center">
 
-A fully-editable personal budgeting web app. Set your income, list spending by
-category, see what's left over, and project your savings forward month by month.
-Includes a location-based benchmark, optional accounts, and an AI assistant that
-can fill in your budget and answer what-if questions.
+# Ledger
 
-**Live (soft launch):** https://d6koy70w6r2op.cloudfront.net
+### Know exactly where your money goes, and where it's headed.
 
-> Soft launch / active development — no custom domain yet. The CloudFront URL is
-> the live site.
+A personal budgeting app that's actually editable, projects your savings month
+by month, and benchmarks your spending against your city. Bring your own AI key
+and it can fill the budget in for you.
 
-## Features
+[**Live demo**](https://d6koy70w6r2op.cloudfront.net) &nbsp;·&nbsp;
+[Architecture](INFRASTRUCTURE.md) &nbsp;·&nbsp;
+[Roadmap](ROADMAP.md)
 
-- **Editable everything** — income, categories, and line items; add/rename/remove freely.
-- **Live summary** — total expenses, leftover, savings rate, category breakdown bar.
-- **Savings projection** — compounds your surplus at a chosen APY; each month is
-  individually editable (month 1 can differ from month 6).
-- **Location benchmark** — grades your housing % and savings rate against
-  cost-of-living-adjusted targets, with a real city autocomplete.
-- **Accounts** — register / log in (JWT); or use it as a guest (local only).
-- **AI assistant** — bring your own Anthropic key in Settings; it proposes budget
-  edits and runs projections. *(Backend wired; chat UI is the next build.)*
-- **Auto-saved** — budget data persists in your browser (localStorage).
+`React + Vite` &nbsp; `FastAPI` &nbsp; `PostgreSQL` &nbsp; `AWS`
 
-## Repository layout
+</div>
 
+> [!NOTE]
+> **Soft launch, active development.** The CloudFront link above is the live
+> site. No custom domain yet. Expect things to move fast.
+
+---
+
+## What it does
+
+|  | Feature | Notes |
+|--|---------|-------|
+| 📝 | **Edit everything** | Income, categories, line items. Add, rename, remove. Your leftover updates live. |
+| 📈 | **Savings projections** | Compound your surplus at any APY, with a clean growth chart. Every month is editable, so month 1 can differ from month 6. |
+| 📍 | **Location benchmark** | Type your city (real autocomplete) and see how your housing % and savings rate compare to cost-of-living-adjusted targets. |
+| 🔐 | **Accounts** | Email + password with verified-email gate, or use it as a guest (local only). |
+| 🤖 | **AI assistant** | Bring your own Anthropic key in Settings. It proposes budget edits and runs what-if projections. *(API live; chat UI is next.)* |
+| 🛡️ | **Admin panel** | Usage stats and user management for admins. |
+
+---
+
+## How it's built
+
+```mermaid
+flowchart LR
+    user(["👤 User"])
+
+    subgraph cf["CloudFront · single origin · HTTPS"]
+        direction TB
+        web["/*&nbsp;&nbsp;&nbsp;&nbsp;→ React SPA"]
+        api["/api/*&nbsp;→ FastAPI"]
+    end
+
+    s3[("S3<br/>static site")]
+    ec2["EC2 · Nginx<br/>FastAPI (async)"]
+    db[("RDS<br/>PostgreSQL")]
+    claude{{"Anthropic API<br/>claude-opus-4-8"}}
+
+    user -- HTTPS --> cf
+    web --> s3
+    api --> ec2
+    ec2 --> db
+    ec2 -. per-user key .-> claude
+
+    classDef edge fill:#eef2ff,stroke:#6366f1,color:#312e81;
+    classDef store fill:#ecfdf5,stroke:#10b981,color:#065f46;
+    classDef ext fill:#fff7ed,stroke:#f59e0b,color:#9a3412;
+    class web,api,ec2 edge;
+    class s3,db store;
+    class claude ext;
 ```
-src/                     Frontend — Vite + React 18 (plain JS)
-  main.jsx               entry; gates Landing (login) vs App
-  App.jsx                sidebar app shell + nav
-  auth.jsx               auth context (login/register/guest)
-  Landing.jsx            login / create-account screen
-  api.js                 backend client (reads VITE_API_URL)
-  theme.js               design tokens (light theme)
-  useBudget.js           budget state hook + summarize()
-  defaultBudget.js       seeded example budget + blank template
-  components.jsx         reusable UI (cards, inputs, chart, etc.)
-  benchmarks.js          cost-of-living benchmark logic
-  geo.js                 city search (Open-Meteo) + caching
-  LocationAutocomplete.jsx
-  tabs/
-    BudgetTab.jsx        income + categories editor + benchmark
-    SavingsTab.jsx       per-month savings projection
-    SettingsTab.jsx      connect your AI provider key
-    HelpTab.jsx          tutorial
-server/                  Backend — FastAPI (Python). See server/README.md
-  app/
-    main.py              app + middleware + router wiring
-    routers/             auth, ai, settings, market, portfolio, accounts
-    services/            budget_tools.py (AI tools + projection)
-.github/workflows/
-  deploy-frontend.yml    auto-deploy frontend on push to main
-INFRASTRUCTURE.md        live AWS architecture, deploy flow, server details
-ROADMAP.md               where this is headed
-reference/BudgetV4.jsx   original hardcoded planning dashboard (kept for reference)
-```
 
-## Run locally
+The site and its API share **one CloudFront domain**, so every call is
+same-origin HTTPS: no CORS, no mixed content, one certificate.
 
-**Frontend:**
-```bash
-npm install
-npm run dev      # http://localhost:5173  (uses .env.development → localhost:8000)
-npm run build    # production build (uses .env.production → CloudFront)
-```
+| Layer | Tech |
+|-------|------|
+| **Frontend** | Vite + React 18, plain JS, inline styles, localStorage |
+| **Backend** | FastAPI (async), SQLAlchemy 2.0 + asyncpg, Alembic, JWT + refresh tokens, slowapi |
+| **Database** | PostgreSQL (RDS); SQLite for local dev and tests |
+| **AI** | Anthropic SDK (`claude-opus-4-8`), tool use, per-user encrypted keys |
+| **Hosting** | AWS us-west-2: S3 + CloudFront (web), EC2 + Nginx (API), RDS (data) |
+| **CI/CD** | GitHub Actions: push to `main` builds, syncs to S3, invalidates CloudFront |
 
-**Backend:** see [server/README.md](server/README.md).
+---
+
+## Security at a glance
+
+Built to not get hacked, and tested for it (`server/tests/test_security.py`, 25 cases).
+
+- **SQL injection safe** - every query uses the SQLAlchemy ORM with bound
+  parameters; injection payloads are treated as literal data (proven by tests
+  that throw `DROP TABLE` and auth-bypass strings at it).
+- **Passwords** bcrypt-hashed. **Refresh tokens** stored as SHA-256 hashes and
+  rotated on use. **Per-user AI keys** encrypted at rest (Fernet), returned only
+  as a masked hint.
+- **Email-verification gate** - no account can obtain or use a token until a
+  6-digit code is confirmed; enforced on every protected route, not just login.
+- **Rate limiting** on auth and the AI route; **no stack traces** leak to clients.
+
+---
+
+## Run it locally
+
+You'll run two things: the API and the web app.
+
+### 1. Backend
+
 ```bash
 cd server
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # set JWT_SECRET, optionally ANTHROPIC_API_KEY
+cp .env.example .env          # set JWT_SECRET; leave DATABASE_URL blank to use SQLite
 uvicorn app.main:app --reload # http://localhost:8000/docs
 ```
 
-## Stack
+With no `DATABASE_URL`, it spins up a local SQLite file and creates the tables
+automatically, so it just runs. Verification codes print to the server log
+(`EMAIL_PROVIDER=console`), so you can complete signup without sending real email.
 
-| Layer | Tech |
-|-------|------|
-| Frontend | Vite + React 18, plain JS, inline styles, localStorage |
-| Backend | FastAPI (Python), JWT auth, slowapi rate limiting, Anthropic SDK |
-| Hosting | AWS — S3 + CloudFront (frontend), EC2 + Nginx (backend), region us-west-2 |
-| CI/CD | GitHub Actions → S3 + CloudFront invalidation |
+### 2. Frontend
 
-The frontend and `/api/*` are served from the **same CloudFront domain** →
-single-origin HTTPS, no CORS, no mixed content.
+```bash
+npm install
+npm run dev    # http://localhost:5173  (talks to localhost:8000)
+```
 
-## Deployment
+That's it. Create an account, grab the code from the backend log, and you're in.
 
-Push to `main` → GitHub Actions builds the frontend, syncs to S3, and invalidates
-CloudFront (live in ~1–2 min). Full details, server config, and secrets locations
-are in [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
+---
+
+## Project layout
+
+```
+src/                       Frontend (Vite + React)
+  main.jsx                 routes landing -> auth -> app
+  Landing.jsx              public marketing page
+  AuthScreen.jsx           login / register / verify-email
+  auth.jsx                 auth context (tokens, guest mode)
+  App.jsx                  signed-in app shell + sidebar nav
+  api.js                   backend client (auto-refreshes tokens)
+  useBudget.js             budget state + derived totals
+  benchmarks.js            cost-of-living benchmark logic
+  geo.js / LocationAutocomplete.jsx   city search + caching
+  tabs/                    Budget · Savings · Settings · Admin · Help
+
+server/                    Backend (FastAPI) - see server/README.md
+  app/
+    main.py                app, middleware, router wiring
+    models.py              SQLAlchemy models (users, refresh_tokens,
+                           email_verifications, budgets)
+    db.py · store.py       engine/session + data-access layer
+    security.py · crypto.py  hashing, JWT, Fernet encryption
+    routers/               auth, admin, settings, budget, ai, market,
+                           portfolio, accounts
+    services/budget_tools.py   AI tool defs + savings projection
+  alembic/                 database migrations
+  tests/test_security.py   injection / auth / admin / crypto tests
+
+.github/workflows/         CI: auto-deploy the frontend
+INFRASTRUCTURE.md          live AWS architecture + server runbook
+ROADMAP.md                 where this is headed
+reference/                 the original hardcoded planning dashboard
+```
+
+---
+
+## Deploying
+
+Push to `main`. GitHub Actions builds the frontend, syncs it to S3, and
+invalidates CloudFront, so changes are live in a minute or two. Backend changes
+are deployed on the EC2 box (and need `alembic upgrade head` after a schema
+change). The full runbook, server config, and where every secret lives are in
+[INFRASTRUCTURE.md](INFRASTRUCTURE.md).
+
+---
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Near-term: a real database (persistence for accounts
-+ keys), the AI chatbot tab, then backend auto-deploy.
+Near-term: the AI chatbot tab, tracking actual spending vs. plan, then connecting
+banks (Plaid) and investment portfolios. Longer ideas, including AI-driven
+projections, live in [ROADMAP.md](ROADMAP.md).
+
+<div align="center">
+<sub>© 2026 Ledger. Built with React, FastAPI, and a lot of budgeting.</sub>
+</div>

@@ -78,11 +78,20 @@ async function req(path, opts = {}) {
 export const health = () => req("/api/health", { auth: false });
 
 // --- auth ---
-export async function register(email, password) {
-  const t = await req("/api/auth/register", { method: "POST", auth: false, body: { email, password } });
+// register no longer returns tokens - it emails a code. Returns { detail }.
+export const register = (email, password) =>
+  req("/api/auth/register", { method: "POST", auth: false, body: { email, password } });
+
+// verify the emailed code -> issues tokens and logs the user in.
+export async function verifyEmail(email, code) {
+  const t = await req("/api/auth/verify", { method: "POST", auth: false, body: { email, code } });
   setTokens(t.access_token, t.refresh_token);
   return t;
 }
+
+export const resendCode = (email) =>
+  req("/api/auth/resend", { method: "POST", auth: false, body: { email } });
+
 export async function login(email, password) {
   // OAuth2 password form expects "username"
   const t = await req("/api/auth/login", { method: "POST", auth: false, form: { username: email, password } });
@@ -116,6 +125,13 @@ export const saveBudget = (budget) => req("/api/budget", { method: "PUT", body: 
 // --- assistant ---  returns { reply, edits, configured }
 export const chat = (message, budget, history = []) =>
   req("/api/ai/chat", { method: "POST", body: { message, budget, history } });
+
+// --- admin (role-gated; 403 for non-admins) ---
+export const adminStats = () => req("/api/admin/stats");
+export const adminUsers = (limit = 100, offset = 0) =>
+  req(`/api/admin/users?limit=${limit}&offset=${offset}`);
+export const adminSetRole = (userId, role) =>
+  req(`/api/admin/users/${userId}/role`, { method: "PUT", body: { role } });
 
 // --- market / portfolio (stubs) ---
 export const quote = (symbol) => req(`/api/market/quote?symbol=${encodeURIComponent(symbol)}`, { auth: false });

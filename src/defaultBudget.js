@@ -1,4 +1,4 @@
-// The example budget the app ships with. It's just a starting point —
+// The example budget the app ships with. It's just a starting point -
 // the user can edit every field, add/remove categories, or wipe it clean.
 // These numbers are seeded from the original LA-move planning sheet.
 

@@ -1,4 +1,4 @@
-// Budget — an editable, spreadsheet-style breakdown of income and spending.
+// Budget - an editable, spreadsheet-style breakdown of income and spending.
 import {
   BG,
   BORDER,
@@ -274,7 +274,7 @@ function BenchmarkPanel({ income, savingsRate, categories, location, onLocation 
       )}
 
       <div style={{ fontSize: 11, color: TEXT_3, marginTop: 12, lineHeight: 1.5 }}>
-        Estimates from the 30% housing rule and a 20% savings target, adjusted by a built-in cost-of-living index — not live local data.
+        Estimates from the 30% housing rule and a 20% savings target, adjusted by a built-in cost-of-living index - not live local data.
       </div>
     </div>
   );

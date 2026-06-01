@@ -1,4 +1,4 @@
-// Savings — projects the surplus forward with compounding interest.
+// Savings - projects the surplus forward with compounding interest.
 // Each month auto-fills from the budget leftover, but any month can be edited
 // (pinned) so month 1 can save a different amount than month 5.
 import { BG, BORDER, BORDER_SOFT, NEGATIVE, POSITIVE, PRIMARY, SURFACE, TEXT, TEXT_2, TEXT_3, fmt } from "../theme.js";
@@ -7,7 +7,7 @@ import { AreaChart, InfoBox, MoneyInput, NumField, SectionLabel, Stat, Th } from
 
 const COLS = "48px 1fr 1fr 1fr";
 
-const MAX_MONTHS = 600; // 50 years — guards against a runaway month count
+const MAX_MONTHS = 600; // 50 years - guards against a runaway month count
 
 function project(start, contribs, apyPercent) {
   const r = (Number(apyPercent) || 0) / 100 / 12;
@@ -103,7 +103,7 @@ export default function SavingsTab({ budget, api }) {
 
             {/* Editable saved amount */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 5 }}>
-              {isPinned(i) && <span title="Edited — won't auto-update" style={{ width: 6, height: 6, borderRadius: 3, background: PRIMARY, flexShrink: 0 }} />}
+              {isPinned(i) && <span title="Edited - won't auto-update" style={{ width: 6, height: 6, borderRadius: 3, background: PRIMARY, flexShrink: 0 }} />}
               <MoneyInput value={contribs[i]} width={96} onChange={(v) => api.setSavingsOverride(i, v)} />
               {isPinned(i) && (
                 <button className="link-btn" title="Reset to auto" onClick={() => api.clearSavingsOverride(i)} style={miniBtn}>
@@ -112,7 +112,7 @@ export default function SavingsTab({ budget, api }) {
               )}
             </div>
 
-            <span className="tnum" style={{ justifySelf: "end", fontSize: 13, color: POSITIVE }}>{r.interest >= 1 ? fmt(r.interest) : "—"}</span>
+            <span className="tnum" style={{ justifySelf: "end", fontSize: 13, color: POSITIVE }}>{r.interest >= 1 ? fmt(r.interest) : "-"}</span>
             <span className="tnum" style={{ justifySelf: "end", fontSize: 13, fontWeight: 600, color: TEXT }}>{fmt(r.balance)}</span>
           </div>
         ))}

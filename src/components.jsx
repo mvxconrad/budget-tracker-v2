@@ -1,7 +1,7 @@
 // Shared, refined UI primitives: KPI stats, labels, tables bits, inputs, chart.
 import { BORDER, BORDER_SOFT, PRIMARY, SURFACE, TEXT, TEXT_2, TEXT_3, fmt } from "./theme.js";
 
-// Section label — small uppercase eyebrow, optional right-aligned slot.
+// Section label - small uppercase eyebrow, optional right-aligned slot.
 export const SectionLabel = ({ children, right }) => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
     <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.7, textTransform: "uppercase", color: TEXT_3 }}>
@@ -155,7 +155,7 @@ export const IconBtn = ({ children, onClick, title }) => (
   </button>
 );
 
-// Inline text field — reads as text, reveals an editable surface on hover/focus.
+// Inline text field - reads as text, reveals an editable surface on hover/focus.
 export const TextInput = ({ value, onChange, placeholder, style }) => (
   <input
     className="field"
@@ -167,7 +167,7 @@ export const TextInput = ({ value, onChange, placeholder, style }) => (
   />
 );
 
-// Currency field — "$" prefix and number highlight together.
+// Currency field - "$" prefix and number highlight together.
 export const MoneyInput = ({ value, onChange, width = 108, style }) => (
   <label className="field-wrap" style={{ width, justifyContent: "flex-end", ...style }}>
     <span className="prefix">$</span>

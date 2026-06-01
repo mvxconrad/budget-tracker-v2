@@ -35,15 +35,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    await api.login(email, password);
+    await api.login(email, password); // throws "email_not_verified" if unverified
     setUser(await api.me());
     setGuest(false);
   };
-  const register = async (email, password) => {
-    await api.register(email, password);
+  // register now sends a verification code; it does NOT sign the user in.
+  const register = (email, password) => api.register(email, password);
+  // verify the emailed code -> signs the user in.
+  const verifyEmail = async (email, code) => {
+    await api.verifyEmail(email, code);
     setUser(await api.me());
     setGuest(false);
   };
+  const resendCode = (email) => api.resendCode(email);
   const logout = () => {
     api.logout();
     setUser(null);
@@ -53,7 +57,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthCtx.Provider
-      value={{ user, ready, guest, backendUp, login, register, logout, continueAsGuest }}
+      value={{ user, ready, guest, backendUp, login, register, verifyEmail, resendCode, logout, continueAsGuest }}
     >
       {children}
     </AuthCtx.Provider>

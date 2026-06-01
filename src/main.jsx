@@ -5,7 +5,7 @@ import Landing from "./Landing.jsx";
 import AuthScreen from "./AuthScreen.jsx";
 import App from "./App.jsx";
 
-// Routing (no router lib — just view state):
+// Routing (no router lib - just view state):
 //   signed in OR guest          → the app
 //   otherwise, "home"           → public marketing landing
 //              "login"/"signup" → auth form (back returns to landing)

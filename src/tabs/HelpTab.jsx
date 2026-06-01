@@ -1,4 +1,4 @@
-// Help — a concise, professional getting-started guide.
+// Help - a concise, professional getting-started guide.
 import { BORDER_SOFT, POSITIVE, PRIMARY, PRIMARY_SOFT, PRIMARY_TEXT, TEXT, TEXT_2, WARNING } from "../theme.js";
 import { InfoBox, SectionLabel } from "../components.jsx";
 
@@ -29,7 +29,7 @@ export default function HelpTab() {
       <div style={{ marginBottom: 28 }}>
         <SectionLabel>Good to know</SectionLabel>
         <InfoBox color={POSITIVE} title="Auto-saved.">
-          Everything lives in this browser — no login required. Reset and Clear are in the top bar.
+          Everything lives in this browser - no login required. Reset and Clear are in the top bar.
         </InfoBox>
         <InfoBox color={WARNING} title="One device for now.">
           Cross-device sync and connected accounts are on the way.

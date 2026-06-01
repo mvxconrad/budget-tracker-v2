@@ -3,7 +3,7 @@
 // suggestions as you type and writes a clean "City, ST" label on select.
 //
 // Search is driven by the user TYPING (onChange of the input), not by the
-// `value` prop — so a pre-filled location on load, or selecting an item, never
+// `value` prop - so a pre-filled location on load, or selecting an item, never
 // triggers a spurious fetch or opens the dropdown on its own.
 import { useEffect, useRef, useState } from "react";
 import { BORDER, PRIMARY_SOFT, SURFACE, TEXT, TEXT_2, TEXT_3 } from "./theme.js";

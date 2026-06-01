@@ -1,4 +1,4 @@
-// Settings — connect your own AI provider key so the assistant runs on your
+// Settings - connect your own AI provider key so the assistant runs on your
 // account. Paste-key is the real flow (providers don't offer "authorize this
 // site" OAuth for API access); we deep-link to the console to make it painless.
 import { useEffect, useState } from "react";
@@ -159,7 +159,7 @@ export default function SettingsTab() {
       </div>
 
       <InfoBox title="Why paste a key?">
-        Providers don't offer a "sign in to authorize this site" flow for API access — your key
+        Providers don't offer a "sign in to authorize this site" flow for API access - your key
         is how the assistant runs on your account. It's stored on your Ledger account and only
         ever shown back to you as the last 4 characters.
       </InfoBox>

@@ -10,7 +10,7 @@ interpolation, so user input can't alter query structure (SQL injection safe).
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, Uuid, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -30,6 +30,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), default="user", nullable=False)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Per-user AI key, encrypted at rest (Fernet). Provider stored alongside.
     api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     api_provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
@@ -42,6 +43,9 @@ class User(Base):
     )
     budget: Mapped["Budget | None"] = relationship(
         back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
+    email_codes: Mapped[list["EmailVerification"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
     )
 
 
@@ -61,6 +65,25 @@ class RefreshToken(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="refresh_tokens")
+
+
+class EmailVerification(Base):
+    __tablename__ = "email_verifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    # We store only a hash of the OTP, never the code itself.
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    consumed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    user: Mapped["User"] = relationship(back_populates="email_codes")
 
 
 class Budget(Base):
