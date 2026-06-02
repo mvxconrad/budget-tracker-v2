@@ -8,20 +8,70 @@ import { useEffect, useRef, useState } from "react";
 import { BORDER, BORDER_SOFT, FONT, PRIMARY, PRIMARY_SOFT, PRIMARY_TEXT, SURFACE, TEXT, TEXT_2, TEXT_3, POSITIVE } from "./theme.js";
 import * as api from "./api.js";
 
+// The assistant's name. Used in the greeting, header, and launcher.
+export const ASSISTANT_NAME = "Q";
+
 const GREETING = {
   role: "assistant",
   content:
-    "Hi, I'm your Quarterbyte advisor. Tell me what you earn and spend in plain English " +
-    "(e.g. \"I make $6,000 a month, rent is $2,000, groceries $400\") and I'll build your " +
-    "budget. You can also ask what-if questions like \"how much to save $20k in a year?\"",
+    `Hi, I'm ${ASSISTANT_NAME}, your Quarterbyte advisor. Tell me what you earn and spend in ` +
+    "plain English (e.g. \"I make $6,000 a month, rent is $2,000, groceries $400\") and I'll " +
+    "build your budget. You can also ask what-if questions like \"how much to save $20k in a year?\"",
 };
 
+// Chat persists for the browser SESSION only (survives refresh / tab navigation,
+// cleared when the tab closes), so a reload doesn't wipe the conversation.
+const CHAT_KEY = "quarterbyte-chat:v1";
+
+function loadChat() {
+  try {
+    const raw = sessionStorage.getItem(CHAT_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(parsed) && parsed.length) return parsed;
+  } catch {
+    /* ignore */
+  }
+  return [GREETING];
+}
+
+// Build the history payload the API/Anthropic expects:
+//  - only {role, content} (strip UI-only flags like applied/configured/error)
+//  - drop error bubbles (never send a failed turn back as context)
+//  - must START with a user message (Anthropic rejects a leading assistant turn),
+//    so trim the synthetic greeting / any leading assistant messages
+//  - cap to the last 20 turns so the payload can't balloon
+function outboundHistory(messages) {
+  let h = messages
+    .filter((m) => (m.role === "user" || m.role === "assistant") && !m.error)
+    .map((m) => ({ role: m.role, content: String(m.content || "") }));
+  while (h.length && h[0].role !== "user") h.shift();
+  return h.slice(-20);
+}
+
 export default function AssistantPanel({ open, onClose, budget, applyEdits, onApplied }) {
-  const [messages, setMessages] = useState([GREETING]);
+  const [messages, setMessages] = useState(loadChat);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Persist the conversation for this session.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CHAT_KEY, JSON.stringify(messages));
+    } catch {
+      /* ignore */
+    }
+  }, [messages]);
+
+  const resetChat = () => {
+    setMessages([GREETING]);
+    try {
+      sessionStorage.removeItem(CHAT_KEY);
+    } catch {
+      /* ignore */
+    }
+  };
 
   // Autoscroll to the newest message.
   useEffect(() => {
@@ -37,7 +87,7 @@ export default function AssistantPanel({ open, onClose, budget, applyEdits, onAp
     const text = input.trim();
     if (!text || busy) return;
     setInput("");
-    const history = messages.filter((m) => m.role === "user" || m.role === "assistant");
+    const history = outboundHistory(messages);
     const next = [...messages, { role: "user", content: text }];
     setMessages(next);
     setBusy(true);
@@ -97,12 +147,18 @@ export default function AssistantPanel({ open, onClose, budget, applyEdits, onAp
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: `1px solid ${BORDER_SOFT}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: POSITIVE, flexShrink: 0 }} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>AI advisor</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: `1px solid ${BORDER_SOFT}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <QAvatar size={28} />
+            <div style={{ lineHeight: 1.15 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>{ASSISTANT_NAME}</div>
+              <div style={{ fontSize: 11, color: TEXT_3 }}>Your AI advisor</div>
+            </div>
           </div>
-          <button onClick={onClose} aria-label="Close" style={iconBtn}>✕</button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={resetChat} title="New chat" style={iconBtn}>⟳</button>
+            <button onClick={onClose} aria-label="Close" style={iconBtn}>✕</button>
+          </div>
         </div>
 
         {/* Messages */}
@@ -187,3 +243,42 @@ const iconBtn = {
   color: "#9aa1ad", background: "transparent", border: `1px solid ${BORDER}`,
   fontSize: 13, display: "inline-flex", alignItems: "center", justifyContent: "center",
 };
+
+// The "Q" avatar: a small gradient tile with the assistant's initial.
+function QAvatar({ size = 28 }) {
+  return (
+    <span
+      style={{
+        width: size, height: size, borderRadius: "50%", flexShrink: 0,
+        background: `linear-gradient(135deg, ${PRIMARY}, #2563eb)`, color: "#fff",
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        fontSize: Math.round(size * 0.5), fontWeight: 700,
+      }}
+    >
+      {ASSISTANT_NAME}
+    </span>
+  );
+}
+
+// Always-visible launcher when the panel is closed: a small docked pill on the
+// right edge so Q is "present" without taking the full panel. Hides while open.
+export function AssistantLauncher({ open, onOpen }) {
+  if (open) return null;
+  return (
+    <button
+      onClick={onOpen}
+      title={`Ask ${ASSISTANT_NAME}, your AI advisor`}
+      style={{
+        position: "fixed", right: 20, bottom: 20, zIndex: 49,
+        display: "inline-flex", alignItems: "center", gap: 9,
+        padding: "10px 16px 10px 12px", borderRadius: 999, cursor: "pointer",
+        fontFamily: FONT, fontSize: 13.5, fontWeight: 600, color: "#fff",
+        background: `linear-gradient(135deg, ${PRIMARY}, #2563eb)`,
+        border: "none", boxShadow: "0 8px 24px rgba(37,99,235,0.35)",
+      }}
+    >
+      <QAvatar size={26} />
+      Ask {ASSISTANT_NAME}
+    </button>
+  );
+}

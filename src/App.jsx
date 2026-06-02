@@ -16,7 +16,7 @@ import {
 import { useBudget } from "./useBudget.js";
 import { useAuth } from "./auth.jsx";
 import Logo from "./Logo.jsx";
-import AssistantPanel from "./AssistantPanel.jsx";
+import AssistantPanel, { AssistantLauncher, ASSISTANT_NAME } from "./AssistantPanel.jsx";
 import { Btn, Pill } from "./components.jsx";
 import BudgetTab from "./tabs/BudgetTab.jsx";
 import SavingsTab from "./tabs/SavingsTab.jsx";
@@ -99,8 +99,8 @@ export default function App() {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {showDataToolbar && (
               <>
-                <Btn onClick={() => setAssistantOpen(true)} title="Ask the AI advisor">
-                  <Icon name="spark" size={15} /> Ask AI
+                <Btn onClick={() => setAssistantOpen(true)} title={`Ask ${ASSISTANT_NAME}, your AI advisor`}>
+                  <Icon name="spark" size={15} /> Ask {ASSISTANT_NAME}
                 </Btn>
                 <Btn onClick={onClear}>Clear all</Btn>
                 {user ? (
@@ -130,6 +130,7 @@ export default function App() {
         </div>
       </main>
 
+      <AssistantLauncher open={assistantOpen} onOpen={() => setAssistantOpen(true)} />
       <AssistantPanel
         open={assistantOpen}
         onClose={() => setAssistantOpen(false)}
