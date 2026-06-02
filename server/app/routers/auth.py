@@ -39,9 +39,11 @@ from ..schemas import (
     RegisterRequest,
     ResendRequest,
     TokenResponse,
+    UsageInfo,
     UserResponse,
     VerifyRequest,
 )
+from ..tiers import limit_for
 from ..security import (
     create_access_token,
     generate_refresh_token,
@@ -152,8 +154,28 @@ async def logout(body: RefreshRequest, session: AsyncSession = Depends(get_sessi
 
 
 @router.get("/me", response_model=UserResponse)
-async def me(user: User = Depends(get_current_user)):
-    return UserResponse(email=user.email, role=user.role, email_verified=user.email_verified)
+async def me(
+    user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
+):
+    # BYOK users (own Anthropic key) are unlimited; everyone else is metered on
+    # the shared server key. Roll the monthly counter over before reporting it.
+    has_own_key = bool(user.api_key_encrypted) and (user.api_provider or "anthropic") == "anthropic"
+    if not has_own_key:
+        await store.reset_ai_usage_if_stale(session, user)
+    usage = UsageInfo(
+        used=user.ai_messages_used or 0,
+        limit=limit_for(user.tier),
+        tier=user.tier,
+        unlimited=has_own_key,
+    )
+    return UserResponse(
+        email=user.email,
+        role=user.role,
+        email_verified=user.email_verified,
+        tier=user.tier,
+        usage=usage,
+        has_own_key=has_own_key,
+    )
 
 
 @router.post("/change-password", status_code=204)

@@ -31,10 +31,21 @@ class MessageResponse(BaseModel):
     detail: str
 
 
+class UsageInfo(BaseModel):
+    """Server-key AI usage for the current month. unlimited=True for BYOK users."""
+    used: int = 0
+    limit: int = 0
+    tier: str = "free"
+    unlimited: bool = False
+
+
 class UserResponse(BaseModel):
     email: str
     role: str = "user"
     email_verified: bool = True
+    tier: str = "free"
+    usage: UsageInfo | None = None
+    has_own_key: bool = False
 
 
 class ChangePasswordRequest(BaseModel):
@@ -91,6 +102,8 @@ class ChatResponse(BaseModel):
     reply: str
     edits: dict | None = None  # partial budget the frontend should apply
     configured: bool = True
+    limit_reached: bool = False  # server-key monthly allowance is used up
+    usage: UsageInfo | None = None  # current usage so the UI can show "5/15"
 
 
 # --- settings (per-user AI key) ---
@@ -108,3 +121,12 @@ class SettingsResponse(BaseModel):
 class TestKeyResponse(BaseModel):
     ok: bool
     detail: str = ""
+
+
+# --- billing (Stripe) ---
+class CheckoutRequest(BaseModel):
+    tier: str  # "plus" | "pro"
+
+
+class CheckoutResponse(BaseModel):
+    url: str  # Stripe Checkout URL to redirect the browser to

@@ -159,9 +159,16 @@ export const testKey = () => req("/api/settings/test-key", { method: "POST" }); 
 export const getBudget = () => req("/api/budget");
 export const saveBudget = (budget) => req("/api/budget", { method: "PUT", body: budget });
 
-// --- assistant ---  returns { reply, edits, configured }
+// --- assistant ---  returns { reply, edits, configured, limit_reached, usage }
 export const chat = (message, budget, history = []) =>
   req("/api/ai/chat", { method: "POST", body: { message, budget, history } });
+
+// --- billing (Stripe) ---
+// Starts a Checkout session for a paid tier ("plus" | "pro"); returns { url }.
+// The caller redirects the browser to that URL. Throws if billing isn't
+// configured server-side (503).
+export const billingCheckout = (tier) =>
+  req("/api/billing/checkout", { method: "POST", body: { tier } });
 
 // --- admin (role-gated; 403 for non-admins) ---
 export const adminStats = () => req("/api/admin/stats");

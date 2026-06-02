@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BORDER, BORDER_SOFT, FONT, PRIMARY, PRIMARY_SOFT, PRIMARY_TEXT, SURFACE, TEXT, TEXT_2, TEXT_3, POSITIVE, fmt, pct } from "./theme.js";
 import { summarize } from "./useBudget.js";
+import { useAuth } from "./auth.jsx";
 import * as api from "./api.js";
 
 // The assistant's name. Used in the greeting, header, and launcher.
@@ -166,12 +167,21 @@ function ThinkingBubble() {
 }
 
 export default function AssistantPanel({ open, onClose, budget, applyEdits, onApplied }) {
+  const { user } = useAuth() || {};
   // Init from saved session chat; the greeting (if fresh) reflects the budget.
   const [messages, setMessages] = useState(() => loadChat(budget));
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  // Server-key usage for the month (null = unknown/guest). Seeded from /me, then
+  // kept current by each chat response. unlimited=true for BYOK users.
+  const [usage, setUsage] = useState(user?.usage || null);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Keep usage in sync if the logged-in user (and their /me usage) changes.
+  useEffect(() => {
+    setUsage(user?.usage || null);
+  }, [user]);
 
   // Persist the conversation for this session.
   useEffect(() => {
@@ -211,6 +221,7 @@ export default function AssistantPanel({ open, onClose, budget, applyEdits, onAp
     setBusy(true);
     try {
       const res = await api.chat(text, budget, history);
+      if (res.usage) setUsage(res.usage);
       if (res.edits && Object.keys(res.edits).length > 0) {
         applyEdits(res.edits);
         onApplied?.();
@@ -222,6 +233,7 @@ export default function AssistantPanel({ open, onClose, budget, applyEdits, onAp
           content: res.reply || "Done.",
           applied: res.edits && Object.keys(res.edits).length > 0,
           configured: res.configured,
+          limitReached: res.limit_reached,
         },
       ]);
     } catch (e) {
@@ -240,6 +252,34 @@ export default function AssistantPanel({ open, onClose, budget, applyEdits, onAp
       send();
     }
   };
+
+  // Kick off Stripe Checkout for a paid tier; redirect the browser to Stripe.
+  const [upgrading, setUpgrading] = useState(false);
+  const startUpgrade = async (tier) => {
+    if (upgrading) return;
+    setUpgrading(true);
+    try {
+      const { url } = await api.billingCheckout(tier);
+      window.location.href = url;
+    } catch (e) {
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content:
+            e.message && /not configured/i.test(e.message)
+              ? "Upgrades aren't available just yet. In the meantime, add your own Anthropic API key in Settings for unlimited use."
+              : `Couldn't start the upgrade: ${e.message || "please try again"}.`,
+          error: true,
+        },
+      ]);
+      setUpgrading(false);
+    }
+  };
+
+  // Show the usage meter only for metered (server-key, signed-in) users.
+  const showMeter = !!user && usage && !usage.unlimited && usage.limit > 0;
+  const atLimit = showMeter && usage.used >= usage.limit;
 
   return (
     <>
@@ -289,6 +329,9 @@ export default function AssistantPanel({ open, onClose, budget, applyEdits, onAp
 
         {/* Input */}
         <div style={{ borderTop: `1px solid ${BORDER_SOFT}`, padding: 12 }}>
+          {showMeter && (
+            <UsageMeter usage={usage} atLimit={atLimit} upgrading={upgrading} onUpgrade={startUpgrade} />
+          )}
           <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
             <textarea
               ref={inputRef}
@@ -305,12 +348,12 @@ export default function AssistantPanel({ open, onClose, budget, applyEdits, onAp
             />
             <button
               onClick={send}
-              disabled={busy || !input.trim()}
+              disabled={busy || atLimit || !input.trim()}
               className="btn btn-primary"
               style={{
                 padding: "10px 14px", borderRadius: 10, fontSize: 13.5, fontWeight: 600,
                 color: "#fff", background: PRIMARY, border: `1px solid ${PRIMARY}`,
-                opacity: busy || !input.trim() ? 0.5 : 1, flexShrink: 0,
+                opacity: busy || atLimit || !input.trim() ? 0.5 : 1, flexShrink: 0,
               }}
             >
               Send
@@ -360,6 +403,67 @@ function Bubble({ msg }) {
     </div>
   );
 }
+
+// Compact monthly-usage meter shown above the input for metered users. At the
+// limit it turns into an upgrade prompt (Plus / Pro) wired to Stripe Checkout.
+function UsageMeter({ usage, atLimit, upgrading, onUpgrade }) {
+  const { used, limit, tier } = usage;
+  const ratio = limit > 0 ? Math.min(1, used / limit) : 0;
+  const nextTier = tier === "free" ? "plus" : "pro";
+  const barColor = atLimit ? "#dc2626" : ratio > 0.8 ? "#f59e0b" : PRIMARY;
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: TEXT_3, marginBottom: 4 }}>
+        <span>
+          <strong style={{ color: atLimit ? "#b91c1c" : TEXT_2 }}>{used}/{limit}</strong> messages used
+          <span style={{ textTransform: "capitalize" }}> · {tier} plan</span>
+        </span>
+        {!atLimit && tier !== "pro" && (
+          <button
+            onClick={() => onUpgrade(nextTier)}
+            disabled={upgrading}
+            style={{ ...linkBtn, opacity: upgrading ? 0.5 : 1 }}
+          >
+            Upgrade
+          </button>
+        )}
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: "#eef0f3", overflow: "hidden" }}>
+        <div style={{ width: `${ratio * 100}%`, height: "100%", background: barColor, transition: "width 0.3s ease" }} />
+      </div>
+      {atLimit && (
+        <div style={{ marginTop: 9, padding: "9px 11px", borderRadius: 9, background: PRIMARY_SOFT, fontSize: 12, color: PRIMARY_TEXT }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>You're out of messages this month.</div>
+          <div style={{ display: "flex", gap: 7 }}>
+            {tier === "free" && (
+              <button onClick={() => onUpgrade("plus")} disabled={upgrading} style={upgradeBtn}>
+                Upgrade to Plus
+              </button>
+            )}
+            <button onClick={() => onUpgrade("pro")} disabled={upgrading} style={upgradeBtn}>
+              Upgrade to Pro
+            </button>
+          </div>
+          <div style={{ marginTop: 7, fontSize: 11, color: TEXT_3 }}>
+            Or add your own Anthropic key in Settings for unlimited use.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const linkBtn = {
+  background: "transparent", border: "none", padding: 0, cursor: "pointer",
+  color: PRIMARY, fontWeight: 600, fontSize: 11, fontFamily: "inherit",
+};
+
+const upgradeBtn = {
+  flex: 1, padding: "7px 10px", borderRadius: 8, cursor: "pointer",
+  fontSize: 12, fontWeight: 600, color: "#fff", background: PRIMARY,
+  border: `1px solid ${PRIMARY}`, fontFamily: "inherit",
+};
 
 const iconBtn = {
   width: 28, height: 28, borderRadius: 7, cursor: "pointer",

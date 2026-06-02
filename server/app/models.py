@@ -34,6 +34,20 @@ class User(Base):
     # Per-user AI key, encrypted at rest (Fernet). Provider stored alongside.
     api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     api_provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    # Subscription tier: "free" | "plus" | "pro" (see app/tiers.py for limits).
+    tier: Mapped[str] = mapped_column(String(16), default="free", nullable=False)
+    # Monthly metered usage of the SERVER AI key (BYOK users are not metered).
+    ai_messages_used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # When the usage counter was last reset; rolls over at the start of each month.
+    ai_usage_reset_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    # Stripe customer id, set on first checkout; maps webhook events back to a user.
+    stripe_customer_id: Mapped[str | None] = mapped_column(
+        String(64), unique=True, index=True, nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -10,14 +10,17 @@ logged-in user with a saved key runs the assistant on their own account.
 import json
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import store
 from ..config import settings
+from ..db import get_session
 from ..deps import get_optional_user
 from ..limiter import limiter
 from ..models import User
-from ..schemas import ChatRequest, ChatResponse
+from ..schemas import ChatRequest, ChatResponse, UsageInfo
 from ..services.budget_tools import SYSTEM, TOOLS, compute_projection
+from ..tiers import limit_for
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -33,18 +36,32 @@ def _client_for(key: str):
     return _clients[key]
 
 
-def _resolve_key(user: User | None) -> str:
+def _resolve_key(user: User | None) -> tuple[str, bool]:
+    """Return (api_key, is_byok). BYOK = the user is on their own key, which is
+    never metered. Falls back to the shared server key (is_byok=False)."""
     if user and (user.api_provider or "anthropic") == "anthropic":
         key = store.get_user_api_key(user)
         if key:
-            return key
-    return settings.anthropic_api_key  # env fallback
+            return key, True
+    return settings.anthropic_api_key, False  # env fallback (metered)
+
+
+def _usage_info(user: User) -> UsageInfo:
+    limit = limit_for(user.tier)
+    return UsageInfo(
+        used=user.ai_messages_used or 0, limit=limit, tier=user.tier, unlimited=False
+    )
 
 
 @router.post("/chat", response_model=ChatResponse)
 @limiter.limit("10/minute")  # the expensive route — real model spend per call
-async def chat(request: Request, req: ChatRequest, user: User | None = Depends(get_optional_user)):
-    api_key = _resolve_key(user)
+async def chat(
+    request: Request,
+    req: ChatRequest,
+    user: User | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_session),
+):
+    api_key, is_byok = _resolve_key(user)
     if not api_key:
         return ChatResponse(
             reply="The assistant isn't connected yet. Add your Anthropic API key in "
@@ -52,6 +69,30 @@ async def chat(request: Request, req: ChatRequest, user: User | None = Depends(g
             edits=None,
             configured=False,
         )
+
+    # Metering applies ONLY when falling back to the shared server key. BYOK users
+    # pay Anthropic directly and are unlimited; anonymous callers can't use the
+    # server key at all (no account to meter, and it protects our spend).
+    if not is_byok:
+        if not user:
+            return ChatResponse(
+                reply="Sign in to chat with Q, or add your own Anthropic API key in "
+                "Settings for unlimited use.",
+                edits=None,
+                configured=False,
+            )
+        await store.reset_ai_usage_if_stale(session, user)
+        limit = limit_for(user.tier)
+        if (user.ai_messages_used or 0) >= limit:
+            return ChatResponse(
+                reply=f"You've used all {limit} of your {user.tier} plan's monthly "
+                "messages. Upgrade for more, or add your own Anthropic API key in "
+                "Settings for unlimited use.",
+                edits=None,
+                configured=True,
+                limit_reached=True,
+                usage=_usage_info(user),
+            )
 
     client = _client_for(api_key)
     budget_json = json.dumps(req.budget.model_dump(), indent=2)
@@ -104,10 +145,21 @@ async def chat(request: Request, req: ChatRequest, user: User | None = Depends(g
             continue
 
         reply = "".join(b.text for b in resp.content if b.type == "text")
-        return ChatResponse(reply=reply, edits=captured_edits, configured=True)
+        usage = None
+        if not is_byok:
+            await store.increment_ai_usage(session, user)
+            usage = _usage_info(user)
+        return ChatResponse(reply=reply, edits=captured_edits, configured=True, usage=usage)
 
+    # Fell out of the tool loop without a clean text reply. Still a real model
+    # call, so meter it the same way.
+    usage = None
+    if not is_byok:
+        await store.increment_ai_usage(session, user)
+        usage = _usage_info(user)
     return ChatResponse(
         reply="I took several steps but didn't finish cleanly — try rephrasing.",
         edits=captured_edits,
         configured=True,
+        usage=usage,
     )

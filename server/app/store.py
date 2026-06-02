@@ -52,6 +52,56 @@ async def delete_user(session: AsyncSession, user: User) -> None:
     await session.commit()
 
 
+# --- AI usage metering (server key only; BYOK is unlimited) ---
+def _aware(dt: datetime) -> datetime:
+    """SQLite hands back naive datetimes; treat them as UTC."""
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
+async def reset_ai_usage_if_stale(session: AsyncSession, user: User) -> None:
+    """Zero the monthly counter when we've rolled into a new calendar month.
+
+    Compares (year, month) so the same month a year later still resets.
+    """
+    now = datetime.now(timezone.utc)
+    reset_at = user.ai_usage_reset_at
+    rolled = reset_at is None or (
+        (_aware(reset_at).year, _aware(reset_at).month) != (now.year, now.month)
+    )
+    if rolled:
+        user.ai_messages_used = 0
+        user.ai_usage_reset_at = now
+        await session.commit()
+
+
+async def increment_ai_usage(session: AsyncSession, user: User) -> None:
+    """Count one successful server-key assistant message against the user."""
+    user.ai_messages_used = (user.ai_messages_used or 0) + 1
+    await session.commit()
+
+
+async def set_user_tier(
+    session: AsyncSession, user: User, tier: str, *, stripe_customer_id: str | None = ...
+) -> User:
+    """Set a user's subscription tier (and optionally their Stripe customer id)."""
+    user.tier = tier
+    if stripe_customer_id is not ...:
+        user.stripe_customer_id = stripe_customer_id
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
+async def set_stripe_customer_id(session: AsyncSession, user: User, customer_id: str) -> None:
+    user.stripe_customer_id = customer_id
+    await session.commit()
+
+
+async def get_user_by_stripe_customer(session: AsyncSession, customer_id: str) -> User | None:
+    res = await session.execute(select(User).where(User.stripe_customer_id == customer_id))
+    return res.scalar_one_or_none()
+
+
 # --- admin ---
 async def count_users(session: AsyncSession) -> int:
     res = await session.execute(select(func.count()).select_from(User))

@@ -45,6 +45,15 @@ class Settings(BaseSettings):
     # its guideline-based estimate instead.
     hud_api_token: str = ""
 
+    # Stripe billing (Plus/Pro upgrades). All optional: billing endpoints return
+    # 503 until the secret key + price ids are set, so the app runs without it.
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""  # from the Stripe webhook endpoint config
+    stripe_price_plus: str = ""  # price_... id for the Plus plan
+    stripe_price_pro: str = ""  # price_... id for the Pro plan
+    # Where Stripe sends the user back after checkout (the app's public origin).
+    public_base_url: str = "http://localhost:5173"
+
     # CORS
     allowed_origins: str = "http://localhost:5173"
 
@@ -61,6 +70,15 @@ class Settings(BaseSettings):
     @property
     def is_sqlite(self) -> bool:
         return self.database_url.startswith("sqlite")
+
+    @property
+    def stripe_price_for(self) -> dict[str, str]:
+        """Map an upgrade tier name -> its configured Stripe price id."""
+        return {"plus": self.stripe_price_plus, "pro": self.stripe_price_pro}
+
+    @property
+    def billing_enabled(self) -> bool:
+        return bool(self.stripe_secret_key and (self.stripe_price_plus or self.stripe_price_pro))
 
     def features(self) -> dict[str, bool]:
         return {
