@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     email_from: str = "no-reply@quarterbyte.local"  # must be an SES-verified identity in prod
     ses_region: str = "us-west-2"
     ses_configuration_set: str = ""  # optional: enables bounce/complaint tracking
+    # Gmail SMTP (email_provider=gmail). Use a Gmail App Password, not your login.
+    smtp_user: str = ""
+    smtp_password: str = ""
 
     # CORS
     allowed_origins: str = "http://localhost:5173"

@@ -71,12 +71,18 @@ def _render(code: str) -> tuple[str, str, str]:
 
 async def send_verification_email(to_email: str, code: str) -> None:
     subject, text, html = _render(code)
-    if settings.email_provider.lower() == "ses":
+    provider = settings.email_provider.lower()
+    if provider == "ses":
         # Run the blocking boto3 call off the event loop; swallow + log failures.
         try:
             await anyio.to_thread.run_sync(_send_ses_sync, to_email, subject, text, html)
         except Exception as e:  # noqa: BLE001 - never break registration on send failure
             log.error("SES send to %s failed: %s", to_email, e)
+    elif provider == "gmail":
+        try:
+            await anyio.to_thread.run_sync(_send_gmail_sync, to_email, subject, text, html)
+        except Exception as e:
+            log.error("Gmail SMTP send to %s failed: %s", to_email, e)
     else:
         # Console fallback - the code shows up in the server logs.
         log.info("[email:console] To %s | %s | code=%s", to_email, subject, code)
@@ -108,3 +114,22 @@ def _send_ses_sync(to_email: str, subject: str, text: str, html: str) -> None:
         kwargs["ConfigurationSetName"] = settings.ses_configuration_set
     resp = client.send_email(**kwargs)
     log.info("SES sent to %s (MessageId=%s)", to_email, resp.get("MessageId"))
+
+
+def _send_gmail_sync(to_email: str, subject: str, text: str, html: str) -> None:
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = settings.email_from
+    msg["To"] = to_email
+    msg.attach(MIMEText(text, "plain"))
+    msg.attach(MIMEText(html, "html"))
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.starttls()
+        server.login(settings.smtp_user, settings.smtp_password)
+        server.sendmail(settings.email_from, to_email, msg.as_string())
+    log.info("Gmail SMTP sent to %s", to_email)
