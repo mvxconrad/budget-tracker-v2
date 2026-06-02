@@ -159,12 +159,12 @@ export default function SettingsTab() {
       </div>
 
       <InfoBox title="Why paste a key?">
-        Providers don't offer a "sign in to authorize this site" flow for API access - your key
-        is how the assistant runs on your account. It's stored on your Ledger account and only
+        Providers don't offer a "sign in to authorize this site" flow for API access, so your key
+        is how the advisor runs on your account. It's stored on your Quarterbyte account and only
         ever shown back to you as the last 4 characters.
       </InfoBox>
       <div style={{ fontSize: 11, color: TEXT_3, marginTop: 4, lineHeight: 1.5 }}>
-        Signed in as {user.email}. Your key bills your own provider account; you control usage and can remove it anytime.
+        Signed in as {user.email}. Your key bills your own provider account, so you control usage and can remove it anytime.
       </div>
     </div>
   );

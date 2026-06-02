@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # Database. Prod (RDS): postgresql+asyncpg://user:pass@host:5432/dbname
     # Local dev falls back to a SQLite file so the app runs with no Postgres.
-    database_url: str = "sqlite+aiosqlite:///./ledger_dev.db"
+    database_url: str = "sqlite+aiosqlite:///./quarterbyte_dev.db"
 
     # Encryption-at-rest key for per-user API keys (Fernet, urlsafe-base64 32 bytes).
     # If unset, a key is derived from JWT_SECRET (fine for dev; set explicitly in prod).
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     # Email (verification codes). console = log the code (dev); ses = AWS SES.
     email_provider: str = "console"
-    email_from: str = "no-reply@ledger.local"  # must be an SES-verified identity in prod
+    email_from: str = "no-reply@quarterbyte.local"  # must be an SES-verified identity in prod
     ses_region: str = "us-west-2"
     ses_configuration_set: str = ""  # optional: enables bounce/complaint tracking
 

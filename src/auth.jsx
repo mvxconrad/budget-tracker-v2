@@ -12,6 +12,8 @@ export function AuthProvider({ children }) {
   const [ready, setReady] = useState(false); // initial session check done
   const [guest, setGuest] = useState(false); // chose to skip login
   const [backendUp, setBackendUp] = useState(true);
+  // Which public screen to show when not signed in: "home" | "login" | "signup".
+  const [authView, setAuthView] = useState("home");
 
   // On load: if we have a token, verify it; also probe the backend.
   useEffect(() => {
@@ -52,12 +54,22 @@ export function AuthProvider({ children }) {
     api.logout();
     setUser(null);
     setGuest(false);
+    setAuthView("home");
   };
   const continueAsGuest = () => setGuest(true);
 
+  // Leave guest/app and go to a public auth screen (used by the navbar buttons).
+  const goToAuth = (view = "login") => {
+    setGuest(false);
+    setAuthView(view);
+  };
+
   return (
     <AuthCtx.Provider
-      value={{ user, ready, guest, backendUp, login, register, verifyEmail, resendCode, logout, continueAsGuest }}
+      value={{
+        user, ready, guest, backendUp, authView, setAuthView,
+        login, register, verifyEmail, resendCode, logout, continueAsGuest, goToAuth,
+      }}
     >
       {children}
     </AuthCtx.Provider>

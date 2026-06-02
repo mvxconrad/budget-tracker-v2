@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { BG, BORDER, FONT, PRIMARY, SURFACE, TEXT, TEXT_2, TEXT_3 } from "./theme.js";
 import { useAuth } from "./auth.jsx";
+import Logo from "./Logo.jsx";
 
 export default function AuthScreen({ initialMode = "login", onBack }) {
   const { login, register, verifyEmail, resendCode, continueAsGuest, backendUp } = useAuth();
@@ -70,7 +71,7 @@ export default function AuthScreen({ initialMode = "login", onBack }) {
     verify: "Verify your email",
   };
   const subtitles = {
-    login: "Sign in to sync settings and use the AI assistant.",
+    login: "Sign in to sync your finances and your AI advisor.",
     register: "Free. We'll email you a code to confirm it's you.",
     verify: `Enter the 6-digit code we sent to ${email || "your email"}.`,
   };
@@ -93,9 +94,8 @@ export default function AuthScreen({ initialMode = "login", onBack }) {
           </button>
         )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center", marginBottom: 22 }}>
-          <Logo />
-          <div style={{ fontSize: 19, fontWeight: 700, color: TEXT, letterSpacing: -0.3 }}>Ledger</div>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}>
+          <Logo wordmark height={28} />
         </div>
 
         <div className="panel" style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "26px 24px" }}>
@@ -205,10 +205,3 @@ function Banner({ color, bg, border, children }) {
   );
 }
 
-function Logo() {
-  return (
-    <div style={{ width: 32, height: 32, borderRadius: 9, background: `linear-gradient(135deg, ${PRIMARY}, #4a57d8)`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 16 }}>
-      L
-    </div>
-  );
-}

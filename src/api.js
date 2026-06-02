@@ -1,15 +1,41 @@
-// Frontend client for the Ledger API (the seam to the backend).
+// Frontend client for the Quarterbyte API (the seam to the backend).
 //
-// Backend base URL comes from Vite env files:
-//   .env.development → http://localhost:8000   (npm run dev)
-//   .env.production  → CloudFront origin        (npm run build)
+// Backend base URL comes from Vite env files (VITE_API_URL):
+//   .env.development → http://localhost:8000  (npm run dev)
+//   .env.production  → "" (empty)             → same-origin: calls /api/... on
+//     whatever domain serves the page (quarterbyte.net / CloudFront), since
+//     CloudFront routes /api/* to the backend. Same-origin means no CORS.
+//
+// Note: we check `undefined`, not truthiness, so an intentional empty string
+// (same-origin) is respected and only a missing var falls back to localhost.
 //
 // Auth uses a short-lived access token + a long-lived refresh token, both kept
 // in localStorage. On a 401 we transparently refresh once and retry, so the
 // user isn't logged out every hour.
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const ACCESS_KEY = "ledger-access-token";
-const REFRESH_KEY = "ledger-refresh-token";
+const BASE =
+  import.meta.env.VITE_API_URL !== undefined
+    ? import.meta.env.VITE_API_URL
+    : "http://localhost:8000";
+const ACCESS_KEY = "quarterbyte-access-token";
+const REFRESH_KEY = "quarterbyte-refresh-token";
+
+// One-time migration from the old "ledger-*" key names so existing sessions
+// aren't dropped on the rename. Safe to remove after a release or two.
+(function migrateLegacyTokens() {
+  try {
+    const pairs = [
+      ["ledger-access-token", ACCESS_KEY],
+      ["ledger-refresh-token", REFRESH_KEY],
+    ];
+    for (const [oldKey, newKey] of pairs) {
+      const v = localStorage.getItem(oldKey);
+      if (v && !localStorage.getItem(newKey)) localStorage.setItem(newKey, v);
+      if (v) localStorage.removeItem(oldKey);
+    }
+  } catch {
+    /* private mode / blocked storage: ignore */
+  }
+})();
 
 export const getToken = () => localStorage.getItem(ACCESS_KEY);
 const getRefresh = () => localStorage.getItem(REFRESH_KEY);

@@ -1,7 +1,7 @@
 // Savings - projects the surplus forward with compounding interest.
 // Each month auto-fills from the budget leftover, but any month can be edited
 // (pinned) so month 1 can save a different amount than month 5.
-import { BG, BORDER, BORDER_SOFT, NEGATIVE, POSITIVE, PRIMARY, SURFACE, TEXT, TEXT_2, TEXT_3, fmt } from "../theme.js";
+import { BG, BORDER, BORDER_SOFT, BRAND_BLUE, NEGATIVE, POSITIVE, PRIMARY, SURFACE, TEXT, TEXT_2, TEXT_3, fmt } from "../theme.js";
 import { summarize } from "../useBudget.js";
 import { AreaChart, InfoBox, MoneyInput, NumField, SectionLabel, Stat, Th } from "../components.jsx";
 
@@ -45,9 +45,9 @@ export default function SavingsTab({ budget, api }) {
       </div>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <Stat label="Total saved" value={contributed} accent={contributed > 0 ? POSITIVE : TEXT} sub={`auto-fills ${fmt(baseline)}/mo from budget`} />
-        <Stat label={`Balance · ${m} mo`} value={final} />
-        <Stat label="Interest earned" value={interestTotal} accent={POSITIVE} sub={`on ${fmt(contributed)} saved`} />
+        <Stat label="Total saved" value={contributed} accent={contributed > 0 ? POSITIVE : TEXT} tint={POSITIVE} sub={`auto-fills ${fmt(baseline)}/mo from budget`} />
+        <Stat label={`Balance · ${m} mo`} value={final} tint={BRAND_BLUE} />
+        <Stat label="Interest earned" value={interestTotal} accent={POSITIVE} tint={POSITIVE} sub={`on ${fmt(contributed)} saved`} />
       </div>
 
       {leftover < 0 && (

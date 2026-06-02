@@ -1,6 +1,6 @@
 # Infrastructure Overview
 
-Live AWS architecture for Ledger (budget tracker). Soft launch / active
+Live AWS architecture for Quarterbyte (budget tracker). Soft launch / active
 development - no custom domain yet; the CloudFront URL is the live site.
 
 ## Architecture
@@ -38,7 +38,7 @@ no CORS, no mixed content.
 - **Auto-deploy:** GitHub Actions on push to `main`
 - **Workflow:** `.github/workflows/deploy-frontend.yml`
 - **Flow:** push → build → hashed assets to S3 → `index.html` (no-cache) →
-  CloudFront invalidation → live in ~1–2 min
+  CloudFront invalidation → live in ~1,2 min
 - **Repo:** git@github.com:mvxconrad/budget-tracker-v2.git
 - **Cache strategy:** hashed assets long-lived; `index.html` `no-cache`;
   auto-invalidation every deploy (this is what avoids stale builds)
@@ -90,8 +90,8 @@ so signup works with no email setup.
    (Account dashboard → "Request production access"), or:
    ```bash
    aws sesv2 put-account-details --production-access-enabled \
-     --mail-type TRANSACTIONAL --website-url https://d6koy70w6r2op.cloudfront.net \
-     --use-case-description "Account verification codes for Ledger" --region us-west-2
+     --mail-type TRANSACTIONAL --website-url https://quarterbyte.net \
+     --use-case-description "Account verification codes for Quarterbyte" --region us-west-2
    ```
 3. **Allow the EC2 backend to send.** Attach an IAM policy (least privilege) to the
    instance role / app credentials:

@@ -107,7 +107,6 @@ export function useBudget() {
         return b;
       }),
 
-    resetToExample: () => setBudget(makeDefaultBudget()),
     clearAll: () => setBudget(makeEmptyBudget()),
   };
 

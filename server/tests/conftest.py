@@ -6,7 +6,7 @@ without reading server logs or sending real email).
 """
 import os
 
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_ledger.db"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_quarterbyte.db"
 os.environ["JWT_SECRET"] = "test-secret-please-ignore"
 os.environ["APP_ENCRYPTION_KEY"] = ""  # use derived dev key
 os.environ["RATE_LIMIT_ENABLED"] = "false"  # don't throttle the test suite

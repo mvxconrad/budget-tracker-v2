@@ -1,0 +1,7 @@
+# Quarterbyte robots policy
+# Allow crawling of the public site; keep crawlers out of the API.
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://quarterbyte.net/sitemap.xml

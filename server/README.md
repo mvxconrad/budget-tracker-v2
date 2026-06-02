@@ -1,8 +1,8 @@
-# Ledger API
+# Quarterbyte API
 
-The FastAPI backend for Ledger. Async throughout, PostgreSQL-backed, with JWT +
-refresh-token auth, an email-verification gate, and a bring-your-own-key AI
-assistant. Features light up as their env keys are provided.
+The FastAPI backend for Quarterbyte. Async throughout, PostgreSQL-backed, with
+JWT and refresh-token auth, an email-verification gate, and a bring-your-own-key
+AI advisor. Features light up as their env keys are provided.
 
 Interactive API docs (Swagger): `http://localhost:8000/docs`
 

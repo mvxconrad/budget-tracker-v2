@@ -1,18 +1,21 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BG,
+  BORDER,
   BORDER_SOFT,
   FONT,
   PRIMARY,
   PRIMARY_SOFT,
   PRIMARY_TEXT,
   SIDEBAR,
+  SURFACE,
   TEXT,
   TEXT_2,
   TEXT_3,
 } from "./theme.js";
 import { useBudget } from "./useBudget.js";
 import { useAuth } from "./auth.jsx";
+import Logo from "./Logo.jsx";
 import { Btn, Pill } from "./components.jsx";
 import BudgetTab from "./tabs/BudgetTab.jsx";
 import SavingsTab from "./tabs/SavingsTab.jsx";
@@ -33,12 +36,9 @@ const TITLES = { budget: "Budget", savings: "Savings", settings: "Settings", adm
 export default function App() {
   const [budget, api] = useBudget();
   const [active, setActive] = useState("budget");
-  const { user, guest, logout } = useAuth();
+  const { user, guest, logout, goToAuth } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const onReset = () => {
-    if (confirm("Reload the example budget? Your current changes will be replaced.")) api.resetToExample();
-  };
   const onClear = () => {
     if (confirm("Clear everything and start from a blank budget?")) api.clearAll();
   };
@@ -77,7 +77,7 @@ export default function App() {
         )}
         <NavItem label="Settings" icon="settings" active={active === "settings"} onClick={() => setActive("settings")} />
         <NavItem label="Help" icon="help" active={active === "help"} onClick={() => setActive("help")} />
-        <AccountFooter user={user} guest={guest} logout={logout} />
+        <AccountFooter user={user} guest={guest} logout={logout} goToAuth={goToAuth} />
       </aside>
 
       {/* Main */}
@@ -94,15 +94,17 @@ export default function App() {
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 600 }}>{TITLES[active]}</div>
-          {showDataToolbar && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <Btn onClick={onReset}>Reset</Btn>
-              <Btn onClick={onClear}>Clear</Btn>
-              <Btn variant="primary" disabled title="Coming soon">
-                <Icon name="plus" size={15} /> Connect account
-              </Btn>
-            </div>
-          )}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {showDataToolbar && (
+              <>
+                <Btn onClick={onClear}>Clear all</Btn>
+                <Btn variant="primary" disabled title="Coming soon">
+                  <Icon name="plus" size={15} /> Connect account
+                </Btn>
+              </>
+            )}
+            <AuthArea user={user} guest={guest} logout={logout} goToAuth={goToAuth} />
+          </div>
         </header>
 
         <div style={{ flex: 1, overflowY: "auto" }}>
@@ -119,7 +121,82 @@ export default function App() {
   );
 }
 
-function AccountFooter({ user, guest, logout }) {
+// Top-right navbar auth area: Log in / Sign up for guests; a profile avatar with
+// a dropdown (email + sign out) when logged in.
+function AuthArea({ user, guest, logout, goToAuth }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  // Guest (or not signed in): show Log in / Sign up.
+  if (!user) {
+    return (
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: guest ? 4 : 0, paddingLeft: 8, borderLeft: `1px solid ${BORDER_SOFT}` }}>
+        <Btn onClick={() => goToAuth("login")}>Log in</Btn>
+        <Btn variant="primary" onClick={() => goToAuth("signup")}>Sign up</Btn>
+      </div>
+    );
+  }
+
+  // Logged in: avatar + dropdown.
+  const initial = (user.email || "?")[0].toUpperCase();
+  return (
+    <div ref={ref} style={{ position: "relative", marginLeft: 4, paddingLeft: 8, borderLeft: `1px solid ${BORDER_SOFT}` }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        title={user.email}
+        aria-label="Account menu"
+        style={{
+          width: 32, height: 32, borderRadius: "50%", cursor: "pointer", flexShrink: 0,
+          background: PRIMARY_SOFT, color: PRIMARY_TEXT, border: `1px solid ${BORDER}`,
+          fontSize: 13, fontWeight: 700, fontFamily: "inherit",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        {initial}
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 40, minWidth: 200,
+            background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10,
+            boxShadow: "0 12px 32px rgba(16,24,40,0.16)", overflow: "hidden",
+          }}
+        >
+          <div style={{ padding: "11px 13px", borderBottom: `1px solid ${BORDER_SOFT}` }}>
+            <div style={{ fontSize: 11, color: TEXT_3, marginBottom: 2 }}>Signed in as</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {user.email}
+            </div>
+            {user.role === "admin" && (
+              <div style={{ marginTop: 5 }}><Pill color={PRIMARY}>Admin</Pill></div>
+            )}
+          </div>
+          <button
+            className="nav-item"
+            onClick={() => { setOpen(false); logout(); }}
+            style={{
+              display: "block", width: "100%", textAlign: "left", border: "none",
+              background: "transparent", cursor: "pointer", padding: "10px 13px",
+              fontSize: 13, fontWeight: 500, color: TEXT_2, fontFamily: "inherit",
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AccountFooter({ user, guest, logout, goToAuth }) {
   return (
     <div style={{ marginTop: 10, paddingTop: 12, borderTop: `1px solid ${BORDER_SOFT}` }}>
       {user ? (
@@ -144,7 +221,7 @@ function AccountFooter({ user, guest, logout }) {
       ) : (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 8px" }}>
           <span style={{ fontSize: 12, color: TEXT_3 }}>Guest{guest ? " · local only" : ""}</span>
-          <button className="link-btn" onClick={logout} style={{ background: "none", border: "none", cursor: "pointer", color: PRIMARY, fontSize: 12, fontWeight: 600 }}>
+          <button className="link-btn" onClick={() => goToAuth("login")} style={{ background: "none", border: "none", cursor: "pointer", color: PRIMARY, fontSize: 12, fontWeight: 600 }}>
             Sign in
           </button>
         </div>
@@ -155,24 +232,8 @@ function AccountFooter({ user, guest, logout }) {
 
 function Brand() {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 8px 20px" }}>
-      <div
-        style={{
-          width: 27,
-          height: 27,
-          borderRadius: 8,
-          background: `linear-gradient(135deg, ${PRIMARY}, #4a57d8)`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#fff",
-          fontWeight: 700,
-          fontSize: 14,
-        }}
-      >
-        L
-      </div>
-      <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: -0.2 }}>Ledger</div>
+    <div style={{ padding: "2px 8px 20px" }}>
+      <Logo wordmark height={24} />
     </div>
   );
 }

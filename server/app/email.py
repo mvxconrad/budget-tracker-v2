@@ -20,7 +20,7 @@ import anyio
 
 from .config import settings
 
-log = logging.getLogger("ledger")
+log = logging.getLogger("quarterbyte")
 
 CODE_TTL_MINUTES = 15
 MAX_ATTEMPTS = 5
@@ -43,9 +43,9 @@ def code_expiry() -> datetime:
 
 def _render(code: str) -> tuple[str, str, str]:
     """Return (subject, text_body, html_body) for a verification email."""
-    subject = "Your Ledger verification code"
+    subject = "Your Quarterbyte verification code"
     text = (
-        f"Welcome to Ledger.\n\n"
+        f"Welcome to Quarterbyte.\n\n"
         f"Your verification code is: {code}\n\n"
         f"It expires in {CODE_TTL_MINUTES} minutes. "
         f"If you didn't request this, you can ignore this email."
@@ -53,7 +53,7 @@ def _render(code: str) -> tuple[str, str, str]:
     html = f"""\
 <!doctype html><html><body style="margin:0;background:#f6f7f9;font-family:Inter,Arial,sans-serif;color:#111827">
   <div style="max-width:440px;margin:0 auto;padding:32px 24px">
-    <div style="font-size:18px;font-weight:700;color:#4f46e5;margin-bottom:20px">Ledger</div>
+    <div style="font-size:18px;font-weight:700;color:#4f46e5;margin-bottom:20px">Quarterbyte</div>
     <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:28px 24px">
       <p style="margin:0 0 8px;font-size:15px;font-weight:600">Verify your email</p>
       <p style="margin:0 0 20px;font-size:13px;color:#5b6472">Enter this code to finish setting up your account.</p>
@@ -63,7 +63,7 @@ def _render(code: str) -> tuple[str, str, str]:
         Expires in {CODE_TTL_MINUTES} minutes. Didn't request this? You can safely ignore it.
       </p>
     </div>
-    <p style="margin:18px 0 0;font-size:11px;color:#9aa1ad;text-align:center">&copy; Ledger</p>
+    <p style="margin:18px 0 0;font-size:11px;color:#9aa1ad;text-align:center">&copy; Quarterbyte</p>
   </div>
 </body></html>"""
     return subject, text, html

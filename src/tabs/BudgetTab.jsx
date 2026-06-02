@@ -3,6 +3,8 @@ import {
   BG,
   BORDER,
   BORDER_SOFT,
+  BRAND_AMBER,
+  BRAND_BLUE,
   POSITIVE,
   NEGATIVE,
   PRIMARY,
@@ -32,30 +34,25 @@ export default function BudgetTab({ budget, api }) {
 
   return (
     <div>
-      {/* Editable budget identity */}
+      {/* Budget identity (read-only; set when the budget is created) */}
       <div style={{ marginBottom: 24 }}>
-        <TextInput
-          value={budget.title}
-          onChange={api.setTitle}
-          placeholder="Budget name"
-          style={{ fontSize: 22, fontWeight: 700, color: TEXT, width: "100%", letterSpacing: -0.3, padding: "2px 6px", marginLeft: -6 }}
-        />
-        <TextInput
-          value={budget.subtitle}
-          onChange={api.setSubtitle}
-          placeholder="Add a description"
-          style={{ fontSize: 13, color: TEXT_2, width: "100%", padding: "2px 6px", marginLeft: -6 }}
-        />
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: TEXT, letterSpacing: -0.3, margin: 0 }}>
+          {budget.title || "My Budget"}
+        </h1>
+        {budget.subtitle && (
+          <p style={{ fontSize: 13, color: TEXT_2, margin: "4px 0 0" }}>{budget.subtitle}</p>
+        )}
       </div>
 
       {/* KPIs */}
       <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-        <Stat label="Monthly income" value={income} />
-        <Stat label="Total expenses" value={totalExpenses} />
+        <Stat label="Monthly income" value={income} tint={BRAND_BLUE} />
+        <Stat label="Total expenses" value={totalExpenses} tint={BRAND_AMBER} />
         <Stat
           label="Net / month"
           value={fmtSigned(leftover)}
           accent={leftover >= 0 ? POSITIVE : NEGATIVE}
+          tint={leftover >= 0 ? POSITIVE : NEGATIVE}
           sub={income > 0 ? `${pct(savingsRate)} savings rate` : "set income to see rate"}
         />
       </div>
@@ -63,7 +60,7 @@ export default function BudgetTab({ budget, api }) {
       {/* Allocation */}
       {segments.length > 0 && (
         <div className="panel" style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "16px 18px", marginBottom: 22 }}>
-          <SectionLabel>Allocation</SectionLabel>
+          <SectionLabel dot={PRIMARY}>Allocation</SectionLabel>
           <StackBar segments={segments} total={totalExpenses} />
           <Legend items={segments.map((s) => ({ label: s.label, color: s.color, value: pct(s.share) }))} />
         </div>
@@ -129,7 +126,10 @@ export default function BudgetTab({ budget, api }) {
 
       {categories.length === 0 && (
         <div style={{ marginTop: 14 }}>
-          <InfoBox title="Empty budget.">Add a category, or hit Reset in the top bar to load the sample budget.</InfoBox>
+          <InfoBox title="Start your budget.">
+            Set your income above and add a category, or let the AI advisor build it for you: tell
+            it what you earn and spend in plain English.
+          </InfoBox>
         </div>
       )}
     </div>

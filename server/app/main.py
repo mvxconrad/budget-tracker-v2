@@ -1,4 +1,4 @@
-"""Ledger API — FastAPI entrypoint."""
+"""Quarterbyte API, FastAPI entrypoint."""
 import logging
 from contextlib import asynccontextmanager
 
@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Ledger API", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="Quarterbyte API", version="0.2.0", lifespan=lifespan)
 
 # Rate limiting: registers the limiter, the 429 handler, and the enforcing middleware.
 app.state.limiter = limiter

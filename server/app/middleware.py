@@ -13,7 +13,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-log = logging.getLogger("ledger")
+log = logging.getLogger("quarterbyte")
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):

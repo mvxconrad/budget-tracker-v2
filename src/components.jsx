@@ -2,17 +2,20 @@
 import { BORDER, BORDER_SOFT, PRIMARY, SURFACE, TEXT, TEXT_2, TEXT_3, fmt } from "./theme.js";
 
 // Section label - small uppercase eyebrow, optional right-aligned slot.
-export const SectionLabel = ({ children, right }) => (
+// `dot` adds a small colored marker before the label (tasteful brand accent).
+export const SectionLabel = ({ children, right, dot }) => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.7, textTransform: "uppercase", color: TEXT_3 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, fontWeight: 600, letterSpacing: 0.7, textTransform: "uppercase", color: TEXT_3 }}>
+      {dot && <span style={{ width: 7, height: 7, borderRadius: 2, background: dot, flexShrink: 0 }} />}
       {children}
     </div>
     {right}
   </div>
 );
 
-// KPI card.
-export const Stat = ({ label, value, sub, accent }) => (
+// KPI card. `tint` adds a subtle colored left edge + label color so a row of
+// stats echoes the brand palette without shouting.
+export const Stat = ({ label, value, sub, accent, tint }) => (
   <div
     className="card"
     style={{
@@ -20,11 +23,12 @@ export const Stat = ({ label, value, sub, accent }) => (
       minWidth: 0,
       background: SURFACE,
       border: `1px solid ${BORDER}`,
+      borderLeft: tint ? `3px solid ${tint}` : `1px solid ${BORDER}`,
       borderRadius: 10,
       padding: "14px 16px",
     }}
   >
-    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", color: TEXT_3 }}>
+    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", color: tint || TEXT_3 }}>
       {label}
     </div>
     <div className="tnum" style={{ marginTop: 9, fontSize: 24, fontWeight: 700, lineHeight: 1.05, color: accent || TEXT }}>

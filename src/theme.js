@@ -12,25 +12,31 @@ export const TEXT = "#111827"; // primary text (near-black)
 export const TEXT_2 = "#5b6472"; // secondary slate
 export const TEXT_3 = "#9aa1ad"; // muted labels
 
-export const PRIMARY = "#4f46e5"; // indigo accent
-export const PRIMARY_TEXT = "#4338ca"; // accent text on light tint
-export const PRIMARY_SOFT = "rgba(79,70,229,0.10)";
-export const POSITIVE = "#059669"; // emerald
-export const NEGATIVE = "#dc2626"; // red
-export const WARNING = "#d97706"; // amber
+// The four Quarterbyte logo colors. These drive the whole scheme.
+export const BRAND_BLUE = "#3b82f6";
+export const BRAND_RED = "#ef4444";
+export const BRAND_GREEN = "#22c55e";
+export const BRAND_AMBER = "#f59e0b";
 
-// Restrained categorical palette, tuned to read well on white.
+export const PRIMARY = BRAND_BLUE; // primary accent = logo blue
+export const PRIMARY_TEXT = "#2563eb"; // slightly deeper blue for text on light tint
+export const PRIMARY_SOFT = "rgba(59,130,246,0.10)";
+export const POSITIVE = "#16a34a"; // logo green, deepened for readable text on white
+export const NEGATIVE = BRAND_RED; // logo red
+export const WARNING = "#d97706"; // logo amber, deepened for readable text on white
+
+// Categorical palette: lead with the four brand colors, then complements.
 export const PALETTE = [
-  "#4f46e5", // indigo
-  "#0d9488", // teal
-  "#d97706", // amber
-  "#e11d48", // rose
-  "#2563eb", // blue
+  BRAND_BLUE,
+  BRAND_RED,
+  BRAND_GREEN,
+  BRAND_AMBER,
   "#7c3aed", // violet
-  "#059669", // emerald
-  "#ea580c", // orange
+  "#0d9488", // teal
+  "#ec4899", // pink
   "#0891b2", // cyan
-  "#c026d3", // fuchsia
+  "#ea580c", // orange
+  "#6366f1", // indigo
 ];
 export const colorForIndex = (i) => PALETTE[i % PALETTE.length];
 

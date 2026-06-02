@@ -3,7 +3,57 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ledger</title>
+    <!-- Favicon: the square Quarterbyte mark. -->
+    <link rel="icon" type="image/png" href="/quarterbyte_icon.png" />
+    <link rel="apple-touch-icon" href="/quarterbyte_icon.png" />
+    <meta name="theme-color" content="#3b82f6" />
+
+    <!-- SEO -->
+    <title>Quarterbyte — AI Financial Advisor &amp; Smart Budgeting App</title>
+    <meta
+      name="description"
+      content="Quarterbyte is a cutting-edge AI financial advisor. Build a smart budget in seconds, forecast your savings, benchmark your spending against your city, and get instant answers to your money what-ifs. Free to start."
+    />
+    <meta
+      name="keywords"
+      content="AI financial advisor, budgeting app, personal finance, savings forecast, money management, AI budget planner, financial planning, expense tracker"
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://quarterbyte.net/" />
+
+    <!-- Open Graph (Facebook, LinkedIn, iMessage link previews) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Quarterbyte" />
+    <meta property="og:title" content="Quarterbyte — Your AI Financial Advisor" />
+    <meta
+      property="og:description"
+      content="A cutting-edge AI financial advisor that builds your budget, forecasts your savings, and answers your money what-ifs. Free to start."
+    />
+    <meta property="og:url" content="https://quarterbyte.net/" />
+    <meta property="og:image" content="https://quarterbyte.net/quarterbyte_wordmark.png" />
+
+    <!-- Twitter / X card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Quarterbyte — Your AI Financial Advisor" />
+    <meta
+      name="twitter:description"
+      content="A cutting-edge AI financial advisor that builds your budget, forecasts your savings, and answers your money what-ifs. Free to start."
+    />
+    <meta name="twitter:image" content="https://quarterbyte.net/quarterbyte_wordmark.png" />
+
+    <!-- Structured data for rich search results -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Quarterbyte",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "description": "An AI financial advisor that builds your budget, forecasts your savings, and benchmarks your spending against your city.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -20,7 +70,7 @@
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
-      ::selection { background: rgba(79, 70, 229, 0.18); }
+      ::selection { background: rgba(59,130,246, 0.18); }
       input::placeholder { color: #aeb4bf; }
 
       /* Tabular figures for any number that should line up in columns. */
@@ -46,8 +96,8 @@
       .field:hover { background: rgba(17, 24, 39, 0.04); }
       .field:focus {
         background: #ffffff;
-        border-color: #4f46e5;
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246, 0.15);
       }
 
       /* Wrapper field (currency "$" prefix, unit suffix) — highlights as one unit. */
@@ -64,8 +114,8 @@
       .field-wrap:hover { background: rgba(17, 24, 39, 0.04); }
       .field-wrap:focus-within {
         background: #ffffff;
-        border-color: #4f46e5;
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246, 0.15);
       }
       .field-wrap .prefix { color: #9aa1ad; font-size: 13px; user-select: none; }
       .field-wrap input {
@@ -98,7 +148,7 @@
       }
 
       .link-btn { font: inherit; cursor: pointer; transition: color 0.12s ease; }
-      .link-btn:hover { color: #4338ca; }
+      .link-btn:hover { color: #2563eb; }
 
       /* Sidebar nav items. */
       .nav-item { cursor: pointer; transition: background 0.12s ease, color 0.12s ease; }
