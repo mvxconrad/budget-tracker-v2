@@ -137,6 +137,17 @@ export async function logout() {
   clearTokens();
 }
 
+// --- account management ---
+// Change password (logs out everywhere; caller should re-auth). 204 on success.
+export const changePassword = (currentPassword, newPassword) =>
+  req("/api/auth/change-password", { method: "POST", body: { current_password: currentPassword, new_password: newPassword } });
+
+// Permanently delete the account; clears local tokens after.
+export async function deleteAccount(password) {
+  await req("/api/auth/delete-account", { method: "POST", body: { password } });
+  clearTokens();
+}
+
 // --- settings (per-user AI key) ---  returns { provider, has_key, key_hint }
 export const getSettings = () => req("/api/settings");
 export const saveSettings = ({ provider, apiKey }) =>

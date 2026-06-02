@@ -50,6 +50,17 @@ export function AuthProvider({ children }) {
     setGuest(false);
   };
   const resendCode = (email) => api.resendCode(email);
+  // Change password: server revokes all sessions, so sign out locally after.
+  const changePassword = async (currentPassword, newPassword) => {
+    await api.changePassword(currentPassword, newPassword);
+  };
+  // Delete account: server cascades the data; clear local state + go home.
+  const deleteAccount = async (password) => {
+    await api.deleteAccount(password);
+    setUser(null);
+    setGuest(false);
+    setAuthView("home");
+  };
   const logout = () => {
     api.logout();
     setUser(null);
@@ -69,6 +80,7 @@ export function AuthProvider({ children }) {
       value={{
         user, ready, guest, backendUp, authView, setAuthView,
         login, register, verifyEmail, resendCode, logout, continueAsGuest, goToAuth,
+        changePassword, deleteAccount,
       }}
     >
       {children}

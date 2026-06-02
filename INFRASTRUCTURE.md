@@ -61,7 +61,8 @@ no CORS, no mixed content.
 - **Env file:** `/etc/budget-tracker/.env`
 - **Process:** systemd → uvicorn `app.main:app` on localhost:8000
 - **Nginx:** reverse proxy 80/443 → localhost:8000
-- **Swagger UI:** http://54.186.135.167/docs
+- **Swagger UI:** `/api/docs` (HTTP Basic auth; set `DOCS_USER`/`DOCS_PASSWORD`). The
+  default `/docs` and `/openapi.json` are disabled.
 
 ### Security
 - SSH: key-only, password auth disabled, restricted to your IP
@@ -132,7 +133,7 @@ set to track bounces/complaints and protect your sender reputation.
 - [x] S3 + CloudFront (SPA routing, HTTPS, OAC, `/api/*` → EC2)
 - [x] Frontend auto-deploy (GitHub Actions → S3 → CloudFront invalidation)
 - [x] EC2 (t3.micro, Ubuntu) + server hardening (ufw, fail2ban, key-only SSH, deploy user)
-- [x] Backend running (systemd + Nginx), Swagger live at /docs
+- [x] Backend running (systemd + Nginx); Swagger at /api/docs behind Basic auth
 - [x] Frontend wired to live backend over single-origin HTTPS
 - [x] **PostgreSQL on RDS** - accounts, encrypted keys, budgets persisted (async SQLAlchemy + Alembic)
 - [x] **JWT + rotating refresh-token auth** backed by the DB
@@ -144,7 +145,7 @@ set to track bounces/complaints and protect your sender reputation.
 ### TODO
 - [ ] Backend auto-deploy (GitHub Actions → EC2)
 - [ ] AI chatbot tab (frontend)
-- [ ] Lock down / admin-gate `/docs` in production
+- [x] Lock down `/docs` (now `/api/docs`, HTTP Basic auth)
 - [ ] Leave SES sandbox + verify a real sending domain (DKIM)
 - [ ] Custom domain + Route 53 + backend TLS cert (deferred - still in dev)
 

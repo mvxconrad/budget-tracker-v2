@@ -27,40 +27,43 @@ function loadLocal() {
 
 export function useBudget(user) {
   const [budget, setBudget] = useState(loadLocal);
-  const [dirty, setDirty] = useState(false); // unsaved changes vs. the server
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null); // Date | null
-  const skipDirty = useRef(true); // don't flag the initial/loaded state as dirty
+  // The exact JSON we last persisted to the server. `dirty` = current budget
+  // differs from this. null means "never saved to the server" -> always dirty,
+  // so a signed-in user with unsaved work never sees a false "Saved".
+  const [savedSnapshot, setSavedSnapshot] = useState(null);
 
-  // Mirror to localStorage on every change (draft cache, works for guests too).
+  // Mirror to localStorage on every change (draft cache, also for guests).
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(budget));
     } catch {
       // storage full / blocked - ignore
     }
-    if (skipDirty.current) {
-      skipDirty.current = false; // the change that set this state was a load, not an edit
-    } else {
-      setDirty(true);
-    }
   }, [budget]);
 
   // On login, pull the server copy (if any) so the budget follows the user.
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setSavedSnapshot(null);
+      return;
+    }
     let alive = true;
     (async () => {
       try {
         const { budget: serverBudget } = await apiClient.getBudget();
-        if (alive && serverBudget) {
-          skipDirty.current = true;
+        if (!alive) return;
+        if (serverBudget) {
           setBudget(serverBudget);
-          setDirty(false);
+          setSavedSnapshot(JSON.stringify(serverBudget));
           setLastSaved(new Date());
+        } else {
+          setSavedSnapshot(null); // user has nothing saved yet -> dirty
         }
       } catch {
-        // offline or no server budget yet - keep the local draft
+        // offline or request failed - treat as not-yet-saved
+        if (alive) setSavedSnapshot(null);
       }
     })();
     return () => {
@@ -68,14 +71,18 @@ export function useBudget(user) {
     };
   }, [user]);
 
+  // Dirty = signed in AND current budget != last server snapshot.
+  const dirty = !!user && JSON.stringify(budget) !== savedSnapshot;
+
   const update = useCallback((fn) => setBudget((b) => fn(structuredClone(b))), []);
 
   const save = useCallback(async () => {
     if (!user) return; // guests have nothing to save to
     setSaving(true);
     try {
+      const snapshot = JSON.stringify(budget);
       await apiClient.saveBudget(budget);
-      setDirty(false);
+      setSavedSnapshot(snapshot);
       setLastSaved(new Date());
     } finally {
       setSaving(false);
@@ -162,7 +169,18 @@ export function useBudget(user) {
         if (typeof edits.income === "number") b.income = edits.income;
         if (typeof edits.location === "string") b.location = edits.location;
         if (edits.savings && typeof edits.savings === "object") {
-          b.savings = { ...b.savings, ...edits.savings };
+          const { overrides: incomingOverrides, ...rest } = edits.savings;
+          b.savings = { ...b.savings, ...rest };
+          // The AI sends overrides as [{month (1-based), amount}]; the budget
+          // stores them as a 0-based-index map. Convert and merge.
+          if (Array.isArray(incomingOverrides)) {
+            b.savings.overrides = { ...(b.savings.overrides || {}) };
+            for (const o of incomingOverrides) {
+              const m = Number(o?.month);
+              if (!Number.isFinite(m) || m < 1) continue;
+              b.savings.overrides[m - 1] = Math.max(0, Number(o.amount) || 0);
+            }
+          }
         }
         if (Array.isArray(edits.categories)) {
           for (const incoming of edits.categories) {

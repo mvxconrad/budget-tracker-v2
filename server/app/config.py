@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
 
+    # Swagger/OpenAPI docs are gated behind HTTP Basic auth. Set both to enable
+    # /api/docs in production; if unset, docs are exposed only in local dev.
+    docs_user: str = ""
+    docs_password: str = ""
+
     # CORS
     allowed_origins: str = "http://localhost:5173"
 

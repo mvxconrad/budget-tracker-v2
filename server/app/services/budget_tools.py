@@ -19,7 +19,12 @@ SYSTEM_PROMPT = (
     "Budget shape:\n"
     "- income: monthly take-home (number)\n"
     "- location: \"City, ST\"\n"
-    "- savings: { startingBalance, apyPercent, months }\n"
+    "- savings: { startingBalance, apyPercent, months, overrides }\n"
+    "  - By default every month saves the leftover (income minus expenses).\n"
+    "  - overrides sets specific months to a different amount: a list of\n"
+    "    { month (1-based), amount }. Use it when the user wants to vary savings\n"
+    "    by month, e.g. \"save $500 in month 1 but $900 from month 3 on\" -> include\n"
+    "    an entry for each month they specify.\n"
     "- categories: [ { name, items: [ { label, amount } ] } ]\n\n"
     "Guidelines:\n"
     "- When the user states figures (\"I make 7900, rent is 2600\"), map them into apply_budget_edits.\n"
@@ -72,6 +77,23 @@ TOOLS = [
                         "startingBalance": {"type": "number"},
                         "apyPercent": {"type": "number"},
                         "months": {"type": "integer"},
+                        "overrides": {
+                            "type": "array",
+                            "description": (
+                                "Per-month savings amounts that differ from the default. Use this "
+                                "when the user wants to save different amounts in different months "
+                                "(e.g. $500 in month 1, $800 in month 3). month is 1-based."
+                            ),
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "month": {"type": "integer", "description": "1-based month number"},
+                                    "amount": {"type": "number"},
+                                },
+                                "required": ["month", "amount"],
+                                "additionalProperties": False,
+                            },
+                        },
                     },
                     "additionalProperties": False,
                 },

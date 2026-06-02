@@ -37,6 +37,15 @@ class UserResponse(BaseModel):
     email_verified: bool = True
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=8, max_length=256)
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=256)
+
+
 # --- budget (mirrors src/defaultBudget.js) ---
 class Item(BaseModel):
     id: str | None = None

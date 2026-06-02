@@ -134,14 +134,19 @@ export default function AuthScreen({ initialMode = "login", onBack }) {
             )}
 
             {step === "verify" && (
-              <Field label="Verification code">
-                <input
-                  type="text" inputMode="numeric" autoComplete="one-time-code" value={code} required autoFocus
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  style={{ ...inputStyle, letterSpacing: 8, fontSize: 20, textAlign: "center", fontWeight: 600 }}
-                  placeholder="000000"
-                />
-              </Field>
+              <>
+                <Field label="Verification code">
+                  <input
+                    type="text" inputMode="numeric" autoComplete="one-time-code" value={code} required autoFocus
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    style={{ ...inputStyle, letterSpacing: 8, fontSize: 20, textAlign: "center", fontWeight: 600 }}
+                    placeholder="000000"
+                  />
+                </Field>
+                <div style={{ fontSize: 12, color: TEXT_3, marginTop: -4, marginBottom: 4, lineHeight: 1.5 }}>
+                  Can't find it? Check your spam or junk folder, then tap Resend code below.
+                </div>
+              </>
             )}
 
             {err && <div style={{ fontSize: 12.5, color: "#b91c1c", marginBottom: 12 }}>{err}</div>}

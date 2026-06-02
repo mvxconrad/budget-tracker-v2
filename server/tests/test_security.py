@@ -237,3 +237,65 @@ async def test_admin_cannot_self_demote(client):
             me_id = u["id"]
     r = await client.put(f"/api/admin/users/{me_id}/role", json={"role": "user"}, headers=h)
     assert r.status_code == 400
+
+
+# ---------- account management: change password ----------
+async def test_change_password_requires_correct_current(client):
+    headers, _ = await auth_headers(client, "cp@example.com", "password123")
+    r = await client.post("/api/auth/change-password", headers=headers,
+                          json={"current_password": "wrongpass", "new_password": "newpassword123"})
+    assert r.status_code == 400
+
+
+async def test_change_password_works_and_revokes_sessions(client):
+    headers, tokens = await auth_headers(client, "cp2@example.com", "password123")
+    r = await client.post("/api/auth/change-password", headers=headers,
+                          json={"current_password": "password123", "new_password": "newpassword123"})
+    assert r.status_code == 204
+    # Old refresh token is revoked (all sessions invalidated).
+    assert (await client.post("/api/auth/refresh", json={"refresh_token": tokens["refresh_token"]})).status_code == 401
+    # New password logs in; old one doesn't.
+    assert (await client.post("/api/auth/login", data={"username": "cp2@example.com", "password": "newpassword123"})).status_code == 200
+    assert (await client.post("/api/auth/login", data={"username": "cp2@example.com", "password": "password123"})).status_code == 401
+
+
+async def test_change_password_requires_auth(client):
+    assert (await client.post("/api/auth/change-password",
+            json={"current_password": "x", "new_password": "newpassword123"})).status_code == 401
+
+
+# ---------- account management: delete account ----------
+async def test_delete_account_requires_correct_password(client):
+    headers, _ = await auth_headers(client, "del@example.com", "password123")
+    r = await client.post("/api/auth/delete-account", headers=headers, json={"password": "wrong"})
+    assert r.status_code == 400
+    # account still works
+    assert (await client.get("/api/auth/me", headers=headers)).status_code == 200
+
+
+async def test_delete_account_removes_user_and_data(client):
+    headers, _ = await auth_headers(client, "del2@example.com", "password123")
+    await client.put("/api/budget", json={"title": "x", "income": 1}, headers=headers)
+    r = await client.post("/api/auth/delete-account", headers=headers, json={"password": "password123"})
+    assert r.status_code == 204
+    # token no longer resolves to a user
+    assert (await client.get("/api/auth/me", headers=headers)).status_code == 401
+    # email is free to register again
+    assert (await register(client, "del2@example.com")).status_code == 201
+
+
+async def test_delete_account_requires_auth(client):
+    assert (await client.post("/api/auth/delete-account", json={"password": "x"})).status_code == 401
+
+
+# ---------- Swagger docs lockdown ----------
+async def test_default_docs_disabled(client):
+    # The auto-mounted /docs and /openapi.json must not exist.
+    assert (await client.get("/docs")).status_code == 404
+    assert (await client.get("/openapi.json")).status_code == 404
+
+
+async def test_custom_docs_open_when_unconfigured(client):
+    # Tests run with DOCS_USER/PASSWORD unset (dev), so docs are open.
+    assert (await client.get("/api/docs")).status_code == 200
+    assert (await client.get("/api/openapi.json")).status_code == 200

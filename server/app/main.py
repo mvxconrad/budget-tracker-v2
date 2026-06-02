@@ -1,9 +1,13 @@
 """Quarterbyte API, FastAPI entrypoint."""
 import logging
+import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -25,7 +29,15 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Quarterbyte API", version="0.2.0", lifespan=lifespan)
+# Disable the auto-mounted public docs; we serve them behind Basic auth below.
+app = FastAPI(
+    title="Quarterbyte API",
+    version="0.2.0",
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 
 # Rate limiting: registers the limiter, the 429 handler, and the enforcing middleware.
 app.state.limiter = limiter
@@ -58,3 +70,36 @@ app.include_router(accounts.router)
 def health():
     """Liveness + which features are enabled by the current env."""
     return {"status": "ok", "features": settings.features()}
+
+
+# --- Swagger docs, gated behind HTTP Basic auth ---
+# Browsers can't send a JWT bearer header to /docs, so we use Basic auth (which
+# browsers prompt for natively). In local dev (DOCS_USER/PASSWORD unset) docs are
+# open for convenience; in prod they require the configured credentials.
+_basic = HTTPBasic(auto_error=False)
+
+
+def _require_docs_auth(credentials: HTTPBasicCredentials | None = Depends(_basic)) -> None:
+    if not settings.docs_user or not settings.docs_password:
+        return  # dev: not configured -> docs open locally
+    ok = (
+        credentials is not None
+        and secrets.compare_digest(credentials.username, settings.docs_user)
+        and secrets.compare_digest(credentials.password, settings.docs_password)
+    )
+    if not ok:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "Not authorized",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+
+@app.get("/api/docs", include_in_schema=False)
+async def custom_docs(_: None = Depends(_require_docs_auth)):
+    return get_swagger_ui_html(openapi_url="/api/openapi.json", title="Quarterbyte API")
+
+
+@app.get("/api/openapi.json", include_in_schema=False)
+async def custom_openapi(_: None = Depends(_require_docs_auth)):
+    return JSONResponse(app.openapi())

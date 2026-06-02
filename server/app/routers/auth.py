@@ -32,6 +32,8 @@ from ..email import (
 from ..limiter import limiter
 from ..models import User
 from ..schemas import (
+    ChangePasswordRequest,
+    DeleteAccountRequest,
     MessageResponse,
     RefreshRequest,
     RegisterRequest,
@@ -152,3 +154,33 @@ async def logout(body: RefreshRequest, session: AsyncSession = Depends(get_sessi
 @router.get("/me", response_model=UserResponse)
 async def me(user: User = Depends(get_current_user)):
     return UserResponse(email=user.email, role=user.role, email_verified=user.email_verified)
+
+
+@router.post("/change-password", status_code=204)
+@limiter.limit("5/minute")
+async def change_password(
+    request: Request,
+    body: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    if not verify_password(body.current_password, user.hashed_password):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is incorrect")
+    await store.set_user_password(session, user, hash_password(body.new_password))
+    # Invalidate all other sessions: changing a password should log out everywhere.
+    await store.revoke_all_refresh_tokens(session, user)
+    return None
+
+
+@router.post("/delete-account", status_code=204)
+@limiter.limit("3/minute")
+async def delete_account(
+    request: Request,
+    body: DeleteAccountRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    if not verify_password(body.password, user.hashed_password):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Password is incorrect")
+    await store.delete_user(session, user)  # cascades to tokens, budgets, codes
+    return None

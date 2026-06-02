@@ -41,6 +41,17 @@ async def create_user(session: AsyncSession, email: str, hashed_password: str) -
     return user
 
 
+async def set_user_password(session: AsyncSession, user: User, hashed_password: str) -> None:
+    user.hashed_password = hashed_password
+    await session.commit()
+
+
+async def delete_user(session: AsyncSession, user: User) -> None:
+    # Cascades to refresh_tokens, budgets, and email_verifications (FK ondelete).
+    await session.delete(user)
+    await session.commit()
+
+
 # --- admin ---
 async def count_users(session: AsyncSession) -> int:
     res = await session.execute(select(func.count()).select_from(User))
@@ -168,6 +179,16 @@ async def revoke_refresh_token(session: AsyncSession, token_hash: str) -> None:
     if rt:
         rt.revoked = True
         await session.commit()
+
+
+async def revoke_all_refresh_tokens(session: AsyncSession, user: User) -> None:
+    """Revoke every refresh token for a user (e.g. after a password change)."""
+    res = await session.execute(
+        select(RefreshToken).where(RefreshToken.user_id == user.id, RefreshToken.revoked.is_(False))
+    )
+    for rt in res.scalars().all():
+        rt.revoked = True
+    await session.commit()
 
 
 # --- budgets (server-synced copy) ---
