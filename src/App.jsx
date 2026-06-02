@@ -34,9 +34,9 @@ const SOON = [
 const TITLES = { budget: "Budget", savings: "Savings", settings: "Settings", admin: "Admin", help: "Help" };
 
 export default function App() {
-  const [budget, api] = useBudget();
-  const [active, setActive] = useState("budget");
   const { user, guest, logout, goToAuth } = useAuth();
+  const [budget, api] = useBudget(user);
+  const [active, setActive] = useState("budget");
   const isAdmin = user?.role === "admin";
 
   const onClear = () => {
@@ -98,9 +98,16 @@ export default function App() {
             {showDataToolbar && (
               <>
                 <Btn onClick={onClear}>Clear all</Btn>
-                <Btn variant="primary" disabled title="Coming soon">
-                  <Icon name="plus" size={15} /> Connect account
-                </Btn>
+                {user ? (
+                  <Btn variant="primary" onClick={api.save} disabled={api.saving || !api.dirty}
+                    title={api.dirty ? "Save your budget" : "All changes saved"}>
+                    {api.saving ? "Saving..." : api.dirty ? "Save" : "Saved"}
+                  </Btn>
+                ) : (
+                  <Btn variant="primary" onClick={() => goToAuth("signup")} title="Sign up to save your budget">
+                    Sign up to save
+                  </Btn>
+                )}
               </>
             )}
             <AuthArea user={user} guest={guest} logout={logout} goToAuth={goToAuth} />

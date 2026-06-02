@@ -1,42 +1,86 @@
 // The single source of truth for budget data.
-// Loads from localStorage, saves on every change, and exposes small
-// helpers so the UI never has to hand-write immutable updates.
-import { useCallback, useEffect, useState } from "react";
-import {
-  SCHEMA_VERSION,
-  makeDefaultBudget,
-  makeEmptyBudget,
-  uid,
-} from "./defaultBudget.js";
+//
+// - Guests: budget lives in localStorage only (a local draft).
+// - Signed-in users: budget loads from the server on login and is saved to the
+//   server with the Save button. localStorage still mirrors it as a fast cache.
+//
+// localStorage key is versioned (:v2). The old :v1 held seeded example data from
+// before budgets started empty; bumping the key abandons that stale seed so new
+// users genuinely start blank.
+import { useCallback, useEffect, useRef, useState } from "react";
+import { SCHEMA_VERSION, makeEmptyBudget, uid } from "./defaultBudget.js";
+import * as apiClient from "./api.js";
 
-const STORAGE_KEY = "budget-tracker:v1";
+const STORAGE_KEY = "quarterbyte-budget:v2";
 
-function load() {
+function loadLocal() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return makeDefaultBudget();
+    if (!raw) return makeEmptyBudget();
     const parsed = JSON.parse(raw);
-    // If we ever bump the schema, fall back to defaults rather than crash.
-    if (!parsed || parsed.version !== SCHEMA_VERSION) return makeDefaultBudget();
+    if (!parsed || parsed.version !== SCHEMA_VERSION) return makeEmptyBudget();
     return parsed;
   } catch {
-    return makeDefaultBudget();
+    return makeEmptyBudget();
   }
 }
 
-export function useBudget() {
-  const [budget, setBudget] = useState(load);
+export function useBudget(user) {
+  const [budget, setBudget] = useState(loadLocal);
+  const [dirty, setDirty] = useState(false); // unsaved changes vs. the server
+  const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null); // Date | null
+  const skipDirty = useRef(true); // don't flag the initial/loaded state as dirty
 
-  // Persist on every change.
+  // Mirror to localStorage on every change (draft cache, works for guests too).
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(budget));
     } catch {
-      // Storage might be full or blocked (private mode) - ignore.
+      // storage full / blocked - ignore
+    }
+    if (skipDirty.current) {
+      skipDirty.current = false; // the change that set this state was a load, not an edit
+    } else {
+      setDirty(true);
     }
   }, [budget]);
 
+  // On login, pull the server copy (if any) so the budget follows the user.
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    (async () => {
+      try {
+        const { budget: serverBudget } = await apiClient.getBudget();
+        if (alive && serverBudget) {
+          skipDirty.current = true;
+          setBudget(serverBudget);
+          setDirty(false);
+          setLastSaved(new Date());
+        }
+      } catch {
+        // offline or no server budget yet - keep the local draft
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
   const update = useCallback((fn) => setBudget((b) => fn(structuredClone(b))), []);
+
+  const save = useCallback(async () => {
+    if (!user) return; // guests have nothing to save to
+    setSaving(true);
+    try {
+      await apiClient.saveBudget(budget);
+      setDirty(false);
+      setLastSaved(new Date());
+    } finally {
+      setSaving(false);
+    }
+  }, [user, budget]);
 
   const api = {
     setTitle: (title) => update((b) => ((b.title = title), b)),
@@ -108,6 +152,12 @@ export function useBudget() {
       }),
 
     clearAll: () => setBudget(makeEmptyBudget()),
+
+    // Save / sync state for the UI.
+    save,
+    saving,
+    dirty,
+    lastSaved,
   };
 
   return [budget, api];
