@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'server/**'
+      - '.github/workflows/deploy-backend.yml'
 
 jobs:
   deploy:
@@ -40,7 +41,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/deploy/budget-tracker-v2
-            sudo -u deploy git pull origin main
+            sudo -u deploy git fetch origin main
+            sudo -u deploy git reset --hard origin/main
             sudo -u deploy /home/deploy/budget-tracker-v2/server/venv/bin/pip install -r /home/deploy/budget-tracker-v2/server/requirements.txt
             export DB_URL=$(sudo grep DATABASE_URL /etc/budget-tracker/.env | cut -d= -f2-)
             sudo -u deploy bash -c "cd /home/deploy/budget-tracker-v2/server && DATABASE_URL='$DB_URL' /home/deploy/budget-tracker-v2/server/venv/bin/alembic upgrade head"
