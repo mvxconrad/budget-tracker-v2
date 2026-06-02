@@ -66,10 +66,16 @@ function setCached(q, results) {
 
 function format(r) {
   const state = STATE_ABBR[r.admin1] || r.admin1 || "";
+  // Open-Meteo often returns a `postcodes` array; keep the first 5-digit ZIP so
+  // the location benchmark can look up real HUD Fair Market Rents for the area.
+  const zip = (r.postcodes || []).map(String).find((z) => /^\d{5}$/.test(z)) || "";
   return {
     id: r.id,
     name: r.name,
     state,
+    zip,
+    lat: r.latitude,
+    lon: r.longitude,
     label: state ? `${r.name}, ${state}` : r.name,
   };
 }

@@ -1,4 +1,5 @@
 // Budget - an editable, spreadsheet-style breakdown of income and spending.
+import { useEffect, useState } from "react";
 import {
   BG,
   BORDER,
@@ -21,6 +22,7 @@ import {
 import { summarize } from "../useBudget.js";
 import { resolveRegion, targetsFor, detectHousing } from "../benchmarks.js";
 import LocationAutocomplete from "../LocationAutocomplete.jsx";
+import { fmrByZip } from "../api.js";
 import { Btn, IconBtn, InfoBox, Legend, MoneyInput, Pill, SectionLabel, StackBar, Stat, TextInput, Th } from "../components.jsx";
 
 const COLS = "1fr 132px 60px 28px";
@@ -72,7 +74,12 @@ export default function BudgetTab({ budget, api }) {
         savingsRate={savingsRate}
         categories={categories}
         location={budget.location || ""}
+        locationZip={budget.locationZip || ""}
         onLocation={api.setLocation}
+        onSelectCity={(city) => {
+          api.setLocation(city.label);
+          api.setLocationZip(city.zip);
+        }}
       />
 
       {/* Spreadsheet */}
@@ -204,11 +211,26 @@ const STATUS = {
   none: { color: TEXT_3 },
 };
 
-function BenchmarkPanel({ income, savingsRate, categories, location, onLocation }) {
+function BenchmarkPanel({ income, savingsRate, categories, location, locationZip, onLocation, onSelectCity }) {
   const region = resolveRegion(location);
   const t = targetsFor(region);
   const housing = detectHousing(categories);
   const housingPct = income > 0 ? (housing.total / income) * 100 : 0;
+
+  // Real Fair Market Rent for the selected ZIP (HUD, official). Falls back
+  // silently to the guideline estimate when unavailable / not configured.
+  const [fmr, setFmr] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setFmr(null);
+    if (!/^\d{5}$/.test(locationZip || "")) return;
+    fmrByZip(locationZip)
+      .then((r) => { if (alive && r && r.available) setFmr(r); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [locationZip]);
+
+  const localRent = fmr?.fmr?.two_br || fmr?.fmr?.one_br || null;
 
   const housingStatus = !housing.found
     ? "none"
@@ -239,6 +261,7 @@ function BenchmarkPanel({ income, savingsRate, categories, location, onLocation 
         <LocationAutocomplete
           value={location}
           onChange={onLocation}
+          onSelect={onSelectCity}
           placeholder="Search your city, e.g. Culver City"
         />
         <span style={{ fontSize: 12, color: TEXT_3, whiteSpace: "nowrap" }}>{region.matched ? region.name : "National avg"}</span>
@@ -257,7 +280,9 @@ function BenchmarkPanel({ income, savingsRate, categories, location, onLocation 
             target={t.areaHousing}
             caption={
               housing.found
-                ? `Healthy ≤ ${t.healthyHousing}% · ${region.name} typical ~${t.areaHousing}%  ·  detected: ${housing.names.join(", ")}`
+                ? (localRent
+                    ? `Local fair-market rent ~${fmt(localRent)}/mo (HUD ${fmr.year})  ·  healthy ≤ ${t.healthyHousing}% of income`
+                    : `Healthy ≤ ${t.healthyHousing}% · ${region.name} typical ~${t.areaHousing}%  ·  detected: ${housing.names.join(", ")}`)
                 : "Name a category “Housing”, “Rent”, or “Mortgage” to benchmark it."
             }
           />
@@ -274,7 +299,9 @@ function BenchmarkPanel({ income, savingsRate, categories, location, onLocation 
       )}
 
       <div style={{ fontSize: 11, color: TEXT_3, marginTop: 12, lineHeight: 1.5 }}>
-        Estimates from the 30% housing rule and a 20% savings target, adjusted by a built-in cost-of-living index - not live local data.
+        {localRent
+          ? `Local rent from HUD Fair Market Rents (${fmr.year}, official). Savings target uses the 20% guideline.`
+          : "Estimates from the 30% housing rule and a 20% savings target, adjusted by a built-in cost-of-living index - not live local data. Pick a city from the dropdown to pull real local rent."}
       </div>
     </div>
   );

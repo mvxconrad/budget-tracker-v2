@@ -17,6 +17,7 @@ export function makeEmptyBudget() {
     title: "My Budget",
     subtitle: "",
     location: "",
+    locationZip: "", // ZIP of the selected city, for the HUD rent benchmark
     income: 0,
     savings: { startingBalance: 0, apyPercent: 3.1, months: 6, overrides: {} },
     categories: [],

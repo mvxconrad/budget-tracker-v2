@@ -3,6 +3,7 @@
 // tool always works locally.
 import { createContext, useContext, useEffect, useState } from "react";
 import * as api from "./api.js";
+import { clearStoredChat } from "./AssistantPanel.jsx";
 
 const AuthCtx = createContext(null);
 export const useAuth = () => useContext(AuthCtx);
@@ -57,12 +58,14 @@ export function AuthProvider({ children }) {
   // Delete account: server cascades the data; clear local state + go home.
   const deleteAccount = async (password) => {
     await api.deleteAccount(password);
+    clearStoredChat();
     setUser(null);
     setGuest(false);
     setAuthView("home");
   };
   const logout = () => {
     api.logout();
+    clearStoredChat(); // don't let the next login inherit this chat
     setUser(null);
     setGuest(false);
     setAuthView("home");

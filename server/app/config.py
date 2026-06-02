@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     docs_user: str = ""
     docs_password: str = ""
 
+    # HUD Fair Market Rents API token (free, register at huduser.gov). Powers the
+    # location benchmark with real published rents. If unset, the frontend uses
+    # its guideline-based estimate instead.
+    hud_api_token: str = ""
+
     # CORS
     allowed_origins: str = "http://localhost:5173"
 

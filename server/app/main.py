@@ -16,7 +16,7 @@ from .config import settings
 from .db import create_all
 from .limiter import limiter
 from .middleware import RequestContextMiddleware
-from .routers import admin, accounts, ai, auth, budget, market, portfolio, settings as settings_router
+from .routers import admin, accounts, ai, auth, benchmark, budget, market, portfolio, settings as settings_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
@@ -60,6 +60,7 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(settings_router.router)
 app.include_router(budget.router)
+app.include_router(benchmark.router)
 app.include_router(ai.router)
 app.include_router(market.router)
 app.include_router(portfolio.router)

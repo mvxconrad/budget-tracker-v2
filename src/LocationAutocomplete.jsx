@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { BORDER, PRIMARY_SOFT, SURFACE, TEXT, TEXT_2, TEXT_3 } from "./theme.js";
 import { searchCities } from "./geo.js";
 
-export default function LocationAutocomplete({ value, onChange, placeholder }) {
+export default function LocationAutocomplete({ value, onChange, onSelect, placeholder }) {
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -84,6 +84,7 @@ export default function LocationAutocomplete({ value, onChange, placeholder }) {
     clearTimeout(timer.current);
     ctrl.current?.abort();
     onChange(r.label);
+    onSelect?.(r); // carries { zip, lat, lon, state, ... } for the benchmark
     setResults([]);
     setNoMatch(false);
     setOpen(false);

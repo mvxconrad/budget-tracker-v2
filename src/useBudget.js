@@ -93,6 +93,7 @@ export function useBudget(user) {
     setTitle: (title) => update((b) => ((b.title = title), b)),
     setSubtitle: (subtitle) => update((b) => ((b.subtitle = subtitle), b)),
     setLocation: (location) => update((b) => ((b.location = location), b)),
+    setLocationZip: (zip) => update((b) => ((b.locationZip = zip || ""), b)),
     setIncome: (income) => update((b) => ((b.income = income), b)),
 
     setSavingsField: (field, value) =>

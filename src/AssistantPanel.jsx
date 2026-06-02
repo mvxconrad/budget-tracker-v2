@@ -5,25 +5,68 @@
 // Requires an AI key (per-user in Settings, or the server fallback). If not
 // configured, the backend returns { configured: false } and we surface a hint.
 import { useEffect, useRef, useState } from "react";
-import { BORDER, BORDER_SOFT, FONT, PRIMARY, PRIMARY_SOFT, PRIMARY_TEXT, SURFACE, TEXT, TEXT_2, TEXT_3, POSITIVE } from "./theme.js";
+import { BORDER, BORDER_SOFT, FONT, PRIMARY, PRIMARY_SOFT, PRIMARY_TEXT, SURFACE, TEXT, TEXT_2, TEXT_3, POSITIVE, fmt, pct } from "./theme.js";
+import { summarize } from "./useBudget.js";
 import * as api from "./api.js";
 
 // The assistant's name. Used in the greeting, header, and launcher.
 export const ASSISTANT_NAME = "Q";
 
-const GREETING = {
-  role: "assistant",
-  content:
-    `Hi, I'm ${ASSISTANT_NAME}, your Quarterbyte advisor. Tell me what you earn and spend in ` +
-    "plain English (e.g. \"I make $6,000 a month, rent is $2,000, groceries $400\") and I'll " +
-    "build your budget. You can also ask what-if questions like \"how much to save $20k in a year?\"",
-};
-
 // Chat persists for the browser SESSION only (survives refresh / tab navigation,
-// cleared when the tab closes), so a reload doesn't wipe the conversation.
+// cleared when the tab closes OR the user logs out), so a reload doesn't wipe the
+// conversation but a different login never inherits the previous user's chat.
 const CHAT_KEY = "quarterbyte-chat:v1";
 
-function loadChat() {
+// Wipe the stored conversation. Called on logout / account deletion so chat
+// memory never crosses between users.
+export function clearStoredChat() {
+  try {
+    sessionStorage.removeItem(CHAT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+// Build the opening assistant message from the user's CURRENT budget:
+//  - has data  -> a short, real summary (income, top expense, savings rate) and
+//                 an offer to optimize. Numbers come from the live budget, not
+//                 hardcoded.
+//  - empty     -> high-level, choice-based questions to get started.
+function buildGreeting(budget) {
+  const { categories, totalExpenses, income, leftover } = summarize(budget || { categories: [] });
+  const hasData = income > 0 || categories.length > 0;
+
+  if (!hasData) {
+    return {
+      role: "assistant",
+      content:
+        `Hi, I'm ${ASSISTANT_NAME}, your AI financial advisor. Your budget's a blank slate, ` +
+        "so let's fill it in. Want to:\n\n" +
+        "- **Build a budget** - tell me what you earn and spend in plain English\n" +
+        "- **Set a savings goal** - e.g. \"save $20k in a year\" and I'll work backward\n" +
+        "- **Just explore** - ask me anything about planning your money\n\n" +
+        "What sounds good?",
+    };
+  }
+
+  const top = [...categories].sort((a, b) => b.total - a.total)[0];
+  const rate = income > 0 ? pct((leftover / income) * 100) : "-";
+  const bits = [];
+  if (income > 0) bits.push(`income is **${fmt(income)}/mo**`);
+  if (totalExpenses > 0) bits.push(`you're spending **${fmt(totalExpenses)}**`);
+  if (top && top.total > 0) bits.push(`biggest category is **${top.name}** (${fmt(top.total)})`);
+
+  return {
+    role: "assistant",
+    content:
+      `Hi, I'm ${ASSISTANT_NAME}. Here's where you stand: ${bits.join(", ")}. ` +
+      `That leaves **${fmt(leftover)}/mo** ` +
+      (income > 0 ? `(a ${rate} savings rate). ` : ". ") +
+      "Want me to look for ways to save more, set a savings goal, or adjust something?",
+  };
+}
+
+function loadChat(budget) {
   try {
     const raw = sessionStorage.getItem(CHAT_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
@@ -31,7 +74,7 @@ function loadChat() {
   } catch {
     /* ignore */
   }
-  return [GREETING];
+  return [buildGreeting(budget)];
 }
 
 // Build the history payload the API/Anthropic expects:
@@ -48,8 +91,83 @@ function outboundHistory(messages) {
   return h.slice(-20);
 }
 
+// Minimal, safe markdown -> HTML for chat bubbles. HTML is escaped FIRST, then a
+// small set of inline + block patterns are applied, so model output can never
+// inject markup (no raw HTML passes through). Supports: headings, bold, italic,
+// inline code, links, and unordered/ordered lists.
+function renderMarkdown(src) {
+  const esc = (s) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const inline = (s) =>
+    esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+
+  const lines = String(src || "").split(/\r?\n/);
+  const out = [];
+  let list = null; // "ul" | "ol" | null
+
+  const closeList = () => {
+    if (list) { out.push(`</${list}>`); list = null; }
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { closeList(); continue; }
+
+    const h = line.match(/^(#{1,3})\s+(.*)$/);
+    const ul = line.match(/^[-*]\s+(.*)$/);
+    const ol = line.match(/^\d+\.\s+(.*)$/);
+
+    if (h) {
+      closeList();
+      const lvl = h[1].length;
+      out.push(`<h${lvl}>${inline(h[2])}</h${lvl}>`);
+    } else if (ul) {
+      if (list !== "ul") { closeList(); out.push("<ul>"); list = "ul"; }
+      out.push(`<li>${inline(ul[1])}</li>`);
+    } else if (ol) {
+      if (list !== "ol") { closeList(); out.push("<ol>"); list = "ol"; }
+      out.push(`<li>${inline(ol[1])}</li>`);
+    } else {
+      closeList();
+      out.push(`<p>${inline(line)}</p>`);
+    }
+  }
+  closeList();
+  return out.join("");
+}
+
+// Animated "Q is thinking" bubble shown while a response is in flight.
+function ThinkingBubble() {
+  return (
+    <div style={{ display: "flex", justifyContent: "flex-start" }}>
+      <div
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 8,
+          padding: "10px 14px", borderRadius: 12, borderBottomLeftRadius: 4,
+          background: "#f3f4f6", border: `1px solid ${BORDER_SOFT}`,
+          fontSize: 12.5, color: TEXT_3,
+        }}
+      >
+        <span style={{ fontWeight: 600 }}>{ASSISTANT_NAME} is thinking</span>
+        <span aria-hidden="true">
+          <span className="think-dot" />
+          <span className="think-dot" />
+          <span className="think-dot" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function AssistantPanel({ open, onClose, budget, applyEdits, onApplied }) {
-  const [messages, setMessages] = useState(loadChat);
+  // Init from saved session chat; the greeting (if fresh) reflects the budget.
+  const [messages, setMessages] = useState(() => loadChat(budget));
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef(null);
@@ -64,14 +182,14 @@ export default function AssistantPanel({ open, onClose, budget, applyEdits, onAp
     }
   }, [messages]);
 
-  const resetChat = () => {
-    setMessages([GREETING]);
-    try {
-      sessionStorage.removeItem(CHAT_KEY);
-    } catch {
-      /* ignore */
-    }
-  };
+  // If the only message is the greeting and it's still showing while the budget
+  // changes (e.g. the user edited before chatting), keep the greeting current.
+  useEffect(() => {
+    setMessages((m) => (m.length === 1 && m[0].role === "assistant" ? [buildGreeting(budget)] : m));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [budget]);
+
+  const resetChat = () => setMessages([buildGreeting(budget)]);
 
   // Autoscroll to the newest message.
   useEffect(() => {
@@ -166,7 +284,7 @@ export default function AssistantPanel({ open, onClose, budget, applyEdits, onAp
           {messages.map((m, i) => (
             <Bubble key={i} msg={m} />
           ))}
-          {busy && <Bubble msg={{ role: "assistant", content: "..." }} />}
+          {busy && <ThinkingBubble />}
         </div>
 
         {/* Input */}
@@ -213,7 +331,7 @@ function Bubble({ msg }) {
     <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}>
       <div
         style={{
-          maxWidth: "85%", fontSize: 13.5, lineHeight: 1.55, whiteSpace: "pre-wrap",
+          maxWidth: "85%", fontSize: 13.5, lineHeight: 1.55,
           padding: "9px 12px", borderRadius: 12,
           background: isUser ? PRIMARY : msg.error ? "#fef2f2" : "#f3f4f6",
           color: isUser ? "#fff" : msg.error ? "#b91c1c" : TEXT,
@@ -222,7 +340,12 @@ function Bubble({ msg }) {
           borderBottomLeftRadius: isUser ? 12 : 4,
         }}
       >
-        {msg.content}
+        {/* User text is plain (preserve newlines); assistant text renders markdown. */}
+        {isUser ? (
+          <span style={{ whiteSpace: "pre-wrap" }}>{msg.content}</span>
+        ) : (
+          <div className="md" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+        )}
         {msg.applied && (
           <div style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: POSITIVE, display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: POSITIVE }} /> Applied to your budget

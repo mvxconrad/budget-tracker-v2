@@ -170,6 +170,11 @@ export const adminUsers = (limit = 100, offset = 0) =>
 export const adminSetRole = (userId, role) =>
   req(`/api/admin/users/${userId}/role`, { method: "PUT", body: { role } });
 
+// --- location benchmark (HUD Fair Market Rents) ---
+// Returns { available, year, area, fmr:{one_br,two_br,...} } or { available:false }.
+export const fmrByZip = (zip) =>
+  req(`/api/benchmark/fmr?zip_code=${encodeURIComponent(zip)}`, { auth: false });
+
 // --- market / portfolio (stubs) ---
 export const quote = (symbol) => req(`/api/market/quote?symbol=${encodeURIComponent(symbol)}`, { auth: false });
 export const getPortfolio = () => req("/api/portfolio");
