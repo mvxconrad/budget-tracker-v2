@@ -153,6 +153,39 @@ export function useBudget(user) {
 
     clearAll: () => setBudget(makeEmptyBudget()),
 
+    // Merge a partial budget from the AI assistant (apply_budget_edits shape):
+    // scalar fields overwrite; savings merges; a category replaces one with the
+    // same name (case-insensitive) or is appended. New ids are generated.
+    applyEdits: (edits) =>
+      update((b) => {
+        if (!edits || typeof edits !== "object") return b;
+        if (typeof edits.income === "number") b.income = edits.income;
+        if (typeof edits.location === "string") b.location = edits.location;
+        if (edits.savings && typeof edits.savings === "object") {
+          b.savings = { ...b.savings, ...edits.savings };
+        }
+        if (Array.isArray(edits.categories)) {
+          for (const incoming of edits.categories) {
+            if (!incoming || typeof incoming.name !== "string") continue;
+            const cat = {
+              id: uid("cat"),
+              name: incoming.name,
+              items: (incoming.items || []).map((it) => ({
+                id: uid("it"),
+                label: String(it.label ?? ""),
+                amount: Number(it.amount) || 0,
+              })),
+            };
+            const idx = b.categories.findIndex(
+              (c) => c.name.trim().toLowerCase() === incoming.name.trim().toLowerCase()
+            );
+            if (idx >= 0) cat.id = b.categories[idx].id, (b.categories[idx] = cat);
+            else b.categories.push(cat);
+          }
+        }
+        return b;
+      }),
+
     // Save / sync state for the UI.
     save,
     saving,

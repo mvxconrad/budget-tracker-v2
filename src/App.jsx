@@ -16,6 +16,7 @@ import {
 import { useBudget } from "./useBudget.js";
 import { useAuth } from "./auth.jsx";
 import Logo from "./Logo.jsx";
+import AssistantPanel from "./AssistantPanel.jsx";
 import { Btn, Pill } from "./components.jsx";
 import BudgetTab from "./tabs/BudgetTab.jsx";
 import SavingsTab from "./tabs/SavingsTab.jsx";
@@ -37,6 +38,7 @@ export default function App() {
   const { user, guest, logout, goToAuth } = useAuth();
   const [budget, api] = useBudget(user);
   const [active, setActive] = useState("budget");
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const isAdmin = user?.role === "admin";
 
   const onClear = () => {
@@ -97,6 +99,9 @@ export default function App() {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {showDataToolbar && (
               <>
+                <Btn onClick={() => setAssistantOpen(true)} title="Ask the AI advisor">
+                  <Icon name="spark" size={15} /> Ask AI
+                </Btn>
                 <Btn onClick={onClear}>Clear all</Btn>
                 {user ? (
                   <Btn variant="primary" onClick={api.save} disabled={api.saving || !api.dirty}
@@ -124,6 +129,13 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      <AssistantPanel
+        open={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        budget={budget}
+        applyEdits={api.applyEdits}
+      />
     </div>
   );
 }
@@ -351,6 +363,12 @@ function Icon({ name, size = 17 }) {
       return (
         <svg {...p}>
           <path d="M12 5v14M5 12h14" />
+        </svg>
+      );
+    case "spark":
+      return (
+        <svg {...p}>
+          <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />
         </svg>
       );
     default:
